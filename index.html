@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Oluşturma Robotu</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: '#00b0f0', // Görsellerdeki ana turkuaz/mavi renk
+                        brandDark: '#008cbf'
+                    },
+                    fontFamily: {
+                        sans: ['Arial', 'Helvetica', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Genel Stiller */
+        body { background-color: #f3f4f6; margin: 0; padding: 0; }
+        
+        /* A4 Kağıt Tasarımı */
+        .a4-wrapper {
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(100vh - 80px);
+        }
+
+        .a4-paper {
+            width: 210mm;
+            min-height: 297mm;
+            height: max-content;
+            background: white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+            color: #333;
+        }
+
+        .a4-header {
+            padding: 15mm 10mm 5mm 10mm;
+        }
+
+        .a4-content {
+            flex: 1;
+            padding: 0 10mm;
+            column-count: 2;
+            column-gap: 12mm;
+            column-rule: 2px dashed #00b0f0;
+        }
+
+        .a4-footer {
+            padding: 5mm 10mm;
+            margin-top: 10mm;
+        }
+
+        /* Soru Stilleri */
+        .question-block {
+            break-inside: avoid;
+            margin-bottom: 8mm;
+            position: relative;
+        }
+
+        .question-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background-color: #00b0f0;
+            color: white;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 14px;
+            margin-right: 8px;
+            float: left;
+        }
+
+        .question-text {
+            font-size: 13px;
+            line-height: 1.4;
+            margin-bottom: 10px;
+            text-align: justify;
+        }
+
+        .question-image {
+            max-width: 100%;
+            height: auto;
+            margin: 10px 0;
+            display: block;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 13px;
+            clear: both;
+        }
+
+        .options-flex {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            clear: both;
+            margin-top: 10px;
+        }
+
+        .option-item {
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .option-letter {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        /* Yazdırma (Print) Stilleri */
+        @media print {
+            @page {
+                size: A4;
+                margin: 0;
+            }
+            body {
+                background: white;
+            }
+            body > *:not(#print-area) {
+                display: none !important;
+            }
+            #print-area {
+                display: block !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .a4-wrapper {
+                padding: 0;
+                max-height: none;
+                overflow: visible;
+            }
+            .a4-paper {
+                box-shadow: none;
+                width: 210mm;
+                height: 297mm; /* Tam A4 boyutu */
+                page-break-after: always;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+        
+        /* Özel Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen overflow-hidden flex flex-col">
+
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="fixed inset-0 bg-gray-100 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+            <div class="text-center mb-8">
+                <i data-lucide="bot" class="w-12 h-12 text-brand mx-auto mb-2"></i>
+                <h1 class="text-2xl font-bold text-gray-800">Test Robotu</h1>
+                <p class="text-gray-500 text-sm">Öğretmen Giriş Paneli</p>
+            </div>
+            
+            <form id="auth-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">E-posta</label>
+                    <input type="email" id="auth-email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand focus:border-brand">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Şifre</label>
+                    <input type="password" id="auth-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand focus:border-brand">
+                </div>
+                <div id="auth-error" class="text-red-500 text-sm hidden">Hata mesajı</div>
+                <button type="submit" id="auth-submit-btn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand hover:bg-brandDark focus:outline-none">
+                    Giriş Yap
+                </button>
+            </form>
+            
+            <div class="mt-4 text-center">
+                <button id="toggle-auth-mode" class="text-sm text-brand hover:underline">
+                    Hesabınız yok mu? Kayıt Olun
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Screen -->
+    <div id="main-screen" class="hidden h-screen flex flex-col">
+        <!-- Navbar -->
+        <nav class="bg-white shadow-sm h-16 flex items-center justify-between px-6 shrink-0 no-print">
+            <div class="flex items-center space-x-2">
+                <i data-lucide="file-text" class="w-6 h-6 text-brand"></i>
+                <span class="font-bold text-xl text-gray-800">Test Robotu</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span id="user-email-display" class="text-sm text-gray-600"></span>
+                <button id="logout-btn" class="text-gray-500 hover:text-red-500" title="Çıkış Yap">
+                    <i data-lucide="log-out" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Workspace -->
+        <div class="flex flex-1 overflow-hidden">
+            
+            <!-- Left Sidebar (Editor) -->
+            <div class="w-96 bg-white border-r border-gray-200 flex flex-col no-print z-10 shadow-lg">
+                <div class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                    <h2 class="font-bold text-gray-700">Araç Kutusu</h2>
+                    <div class="flex space-x-2">
+                        <button id="save-test-btn" class="p-2 bg-green-100 text-green-700 rounded hover:bg-green-200 transition" title="Veritabanına Kaydet">
+                            <i data-lucide="save" class="w-5 h-5"></i>
+                        </button>
+                        <button id="print-test-btn" class="p-2 bg-brand text-white rounded hover:bg-brandDark transition" title="PDF / Çıktı Al">
+                            <i data-lucide="printer" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-4 space-y-6">
+                    
+                    <!-- Test Settings -->
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center">
+                            <i data-lucide="settings" class="w-4 h-4 mr-1"></i> Test Başlığı & Ayarlar
+                        </h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs text-gray-500">Tarih / Başlık 1 (Örn: 02-03 MART 2026)</label>
+                                <input type="text" id="setting-date" value="02-03 MART 2026" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500">Ana Başlık (Örn: GÜNLÜK ÖDEVİ-1)</label>
+                                <input type="text" id="setting-title" value="GÜNLÜK ÖDEVİ-1" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
+                            </div>
+                            <div class="flex space-x-2">
+                                <div class="flex-1">
+                                    <label class="block text-xs text-gray-500">Seviye (Sol Etiket)</label>
+                                    <input type="text" id="setting-level" value="Orta Seviye" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
+                                </div>
+                                <div class="w-20">
+                                    <label class="block text-xs text-gray-500">Süre (dk)</label>
+                                    <input type="text" id="setting-time" value="25" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500">Alt Başlık Açıklaması</label>
+                                <input type="text" id="setting-desc" value="Aşağıdaki soruları defterinize belirtilen sürede rahatça çözünüz." class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add Question Form -->
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <h3 class="text-sm font-bold text-brandDark mb-3 flex items-center">
+                            <i data-lucide="plus-circle" class="w-4 h-4 mr-1"></i> Yeni Soru Ekle
+                        </h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs text-gray-700 font-medium">Soru Metni</label>
+                                <textarea id="q-text" rows="3" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand placeholder-gray-400" placeholder="Sorunuzu buraya yazın..."></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-700 font-medium mb-1">Soru Görseli (İsteğe Bağlı)</label>
+                                <input type="file" id="q-image" accept="image/*" class="w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-brand file:text-white hover:file:bg-brandDark">
+                                <div id="image-preview-container" class="hidden mt-2 relative">
+                                    <img id="q-image-preview" src="" class="h-20 object-contain rounded border border-gray-200 bg-white">
+                                    <button id="remove-image-btn" class="absolute top-1 left-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600">
+                                        <i data-lucide="x" class="w-3 h-3"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs text-gray-500">A Şıkkı</label>
+                                    <input type="text" id="q-optA" class="mt-1 w-full text-sm border-gray-300 rounded p-1 border focus:ring-brand focus:border-brand">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500">B Şıkkı</label>
+                                    <input type="text" id="q-optB" class="mt-1 w-full text-sm border-gray-300 rounded p-1 border focus:ring-brand focus:border-brand">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500">C Şıkkı</label>
+                                    <input type="text" id="q-optC" class="mt-1 w-full text-sm border-gray-300 rounded p-1 border focus:ring-brand focus:border-brand">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500">D Şıkkı</label>
+                                    <input type="text" id="q-optD" class="mt-1 w-full text-sm border-gray-300 rounded p-1 border focus:ring-brand focus:border-brand">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500">Şık Dizilimi</label>
+                                <select id="q-layout" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
+                                    <option value="flex">Yan Yana (A B C D)</option>
+                                    <option value="grid">2x2 Izgara (A B altlı üstlü C D)</option>
+                                    <option value="none">Şık Yok (Sadece Metin/Görsel)</option>
+                                </select>
+                            </div>
+                            <button id="add-question-btn" class="w-full bg-brand text-white text-sm font-bold py-2 rounded hover:bg-brandDark transition mt-2 flex items-center justify-center">
+                                <i data-lucide="check" class="w-4 h-4 mr-1"></i> Listeye Ekle
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Question List -->
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-700 mb-2 border-b pb-1">Eklenen Sorular (<span id="q-count">0</span>)</h3>
+                        <div id="questions-list" class="space-y-2">
+                            <!-- JS ile doldurulacak -->
+                            <p class="text-xs text-gray-400 italic">Henüz soru eklenmedi.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Right Preview Area (A4 Paper) -->
+            <div id="print-area" class="flex-1 bg-gray-200 relative">
+                <div class="a4-wrapper">
+                    <!-- A4 Kağıt Container -->
+                    <div class="a4-paper" id="a4-document">
+                        
+                        <!-- A4 Özel Header Tasarımı -->
+                        <div class="a4-header">
+                            <div class="flex items-center justify-between mb-2 relative">
+                                <!-- Sol İkon (Temsili İllüstrasyon) -->
+                                <div class="w-24 h-24 bg-teal-50 rounded-lg flex flex-col items-center justify-center text-teal-600 border border-teal-100">
+                                   <i data-lucide="calendar-days" class="w-10 h-10 mb-1"></i>
+                                   <i data-lucide="check-square" class="w-6 h-6"></i>
+                                </div>
+                                
+                                <!-- Orta Başlıklar -->
+                                <div class="text-center flex-1 px-4">
+                                    <h1 id="render-date" class="text-4xl font-black text-brand tracking-wider mb-1">02-03 MART 2026</h1>
+                                    <h2 id="render-title" class="text-3xl font-black text-gray-800 tracking-wide">GÜNLÜK ÖDEVİ-1</h2>
+                                </div>
+                                
+                                <!-- Sağ İkon (Temsili İllüstrasyon) -->
+                                <div class="w-24 h-24 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 border border-blue-100">
+                                    <i data-lucide="book-open" class="w-12 h-12"></i>
+                                </div>
+                            </div>
+
+                            <!-- Bilgi Çubuğu (Turkuaz Banner) -->
+                            <div class="relative flex items-center bg-brand rounded-full h-10 mt-4 shadow-sm">
+                                <div id="render-level" class="bg-gray-200 text-gray-800 font-bold px-4 py-1.5 rounded-full ml-1 text-sm z-10">
+                                    Orta Seviye
+                                </div>
+                                <div id="render-desc" class="text-white font-medium text-sm ml-4 flex-1">
+                                    Aşağıdaki soruları defterinize belirtilen sürede rahatça çözünüz.
+                                </div>
+                                <!-- Süre Çemberi -->
+                                <div class="absolute -right-2 -top-4 w-16 h-16 bg-brand rounded-full flex flex-col items-center justify-center text-white shadow-md border-4 border-white">
+                                    <span id="render-time" class="font-black text-xl leading-none mt-1">25</span>
+                                    <span class="text-xs font-bold">dk</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Soruların Dizildiği İki Sütunlu Alan -->
+                        <div class="a4-content" id="render-questions">
+                            <!-- Dinamik sorular buraya gelecek -->
+                        </div>
+
+                        <!-- A4 Footer -->
+                        <div class="a4-footer flex items-center justify-between bg-brand text-white rounded-t-xl px-6 py-2">
+                            <div class="font-bold text-lg">Sayfa-1</div>
+                            <div id="render-footer-title" class="font-bold text-lg">02-03 Mart Günü Ödevi-1</div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Bildirim Modalı -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none z-50">
+        Mesaj
+    </div>
+
+    <!-- Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // İkonları Başlat
+        lucide.createIcons();
+
+        // 1. Firebase Kurulumu
+        let app, auth, db, appId, currentUser;
+        
+        try {
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        } catch (error) {
+            console.error("Firebase başlatılamadı (Ortam değişkenleri eksik olabilir, mock modda çalışacak).", error);
+        }
+
+        // Uygulama State'i
+        let questions = [];
+        let isLoginMode = true;
+        let pendingImageData = null;
+
+        // UI Elementleri
+        const authScreen = document.getElementById('auth-screen');
+        const mainScreen = document.getElementById('main-screen');
+        const authForm = document.getElementById('auth-form');
+        const authEmail = document.getElementById('auth-email');
+        const authPassword = document.getElementById('auth-password');
+        const authError = document.getElementById('auth-error');
+        const toggleAuthModeBtn = document.getElementById('toggle-auth-mode');
+        const authSubmitBtn = document.getElementById('auth-submit-btn');
+        const userEmailDisplay = document.getElementById('user-email-display');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        // Ayar Elementleri
+        const inputs = {
+            date: document.getElementById('setting-date'),
+            title: document.getElementById('setting-title'),
+            level: document.getElementById('setting-level'),
+            time: document.getElementById('setting-time'),
+            desc: document.getElementById('setting-desc')
+        };
+        const renders = {
+            date: document.getElementById('render-date'),
+            title: document.getElementById('render-title'),
+            level: document.getElementById('render-level'),
+            time: document.getElementById('render-time'),
+            desc: document.getElementById('render-desc'),
+            footerTitle: document.getElementById('render-footer-title')
+        };
+
+        // 2. Auth Mantığı (Kurallara Uygun)
+        const initAuth = async () => {
+            if (!auth) return showMainScreen(); // Firebase yoksa mock devam et
+
+            // Ortamda token varsa otomatik giriş yap
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                try {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } catch (e) {
+                    console.error("Custom token hatası:", e);
+                }
+            }
+        };
+
+        if (auth) {
+            onAuthStateChanged(auth, (user) => {
+                currentUser = user;
+                if (user) {
+                    userEmailDisplay.textContent = user.email || 'Anonim Öğretmen';
+                    showMainScreen();
+                } else {
+                    showAuthScreen();
+                }
+            });
+            initAuth();
+        } else {
+            // Mock mod
+            showMainScreen();
+        }
+
+        // Auth Form İşlemleri
+        toggleAuthModeBtn.addEventListener('click', () => {
+            isLoginMode = !isLoginMode;
+            authSubmitBtn.textContent = isLoginMode ? 'Giriş Yap' : 'Kayıt Ol';
+            toggleAuthModeBtn.textContent = isLoginMode ? 'Hesabınız yok mu? Kayıt Olun' : 'Zaten hesabınız var mı? Giriş Yapın';
+            authError.classList.add('hidden');
+        });
+
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = authEmail.value;
+            const password = authPassword.value;
+            authError.classList.add('hidden');
+
+            try {
+                if (isLoginMode) {
+                    await signInWithEmailAndPassword(auth, email, password);
+                } else {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                }
+            } catch (error) {
+                authError.textContent = error.message;
+                authError.classList.remove('hidden');
+            }
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            if(auth) signOut(auth);
+        });
+
+        function showMainScreen() {
+            authScreen.classList.add('hidden');
+            mainScreen.classList.remove('hidden');
+            updateA4Settings();
+        }
+
+        function showAuthScreen() {
+            authScreen.classList.remove('hidden');
+            mainScreen.classList.add('hidden');
+        }
+
+        // 3. Resim Sıkıştırma (Firestore 1MB limitine takılmamak için Base64'e çevirip küçültüyoruz)
+        const qImageInput = document.getElementById('q-image');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const qImagePreview = document.getElementById('q-image-preview');
+        const removeImageBtn = document.getElementById('remove-image-btn');
+
+        qImageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 600; // Genişliği sınırla
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > MAX_WIDTH) {
+                        height = Math.round((height * MAX_WIDTH) / width);
+                        width = MAX_WIDTH;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // JPEG olarak kaydet ve kaliteyi düşür
+                    pendingImageData = canvas.toDataURL('image/jpeg', 0.7);
+                    
+                    qImagePreview.src = pendingImageData;
+                    imagePreviewContainer.classList.remove('hidden');
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        removeImageBtn.addEventListener('click', () => {
+            pendingImageData = null;
+            qImageInput.value = '';
+            imagePreviewContainer.classList.add('hidden');
+        });
+
+        // 4. Soru Ekleme ve A4 Render Mantığı
+        Object.values(inputs).forEach(input => {
+            input.addEventListener('input', updateA4Settings);
+        });
+
+        function updateA4Settings() {
+            renders.date.textContent = inputs.date.value || 'Tarih';
+            renders.title.textContent = inputs.title.value || 'BAŞLIK';
+            renders.level.textContent = inputs.level.value || 'Seviye';
+            renders.time.textContent = inputs.time.value || '0';
+            renders.desc.textContent = inputs.desc.value || '';
+            renders.footerTitle.textContent = `${inputs.date.value} Ödevi`;
+        }
+
+        document.getElementById('add-question-btn').addEventListener('click', () => {
+            const text = document.getElementById('q-text').value.trim();
+            const optA = document.getElementById('q-optA').value.trim();
+            const optB = document.getElementById('q-optB').value.trim();
+            const optC = document.getElementById('q-optC').value.trim();
+            const optD = document.getElementById('q-optD').value.trim();
+            const layout = document.getElementById('q-layout').value;
+
+            if (!text && !pendingImageData) {
+                showToast("Lütfen soru metni veya görsel ekleyin!");
+                return;
+            }
+
+            const newQuestion = {
+                id: Date.now().toString(),
+                text,
+                image: pendingImageData,
+                options: { A: optA, B: optB, C: optC, D: optD },
+                layout
+            };
+
+            questions.push(newQuestion);
+            renderQuestions();
+            updateQuestionsList();
+            clearForm();
+            showToast("Soru eklendi!");
+        });
+
+        function clearForm() {
+            document.getElementById('q-text').value = '';
+            document.getElementById('q-optA').value = '';
+            document.getElementById('q-optB').value = '';
+            document.getElementById('q-optC').value = '';
+            document.getElementById('q-optD').value = '';
+            removeImageBtn.click(); // Resmi temizler
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('render-questions');
+            container.innerHTML = '';
+
+            questions.forEach((q, index) => {
+                const qDiv = document.createElement('div');
+                qDiv.className = 'question-block';
+
+                let html = `<div class="question-number">${index + 1}</div>`;
+                
+                if (q.text) {
+                    // Satır sonlarını br tagine çevir
+                    const formattedText = q.text.replace(/\n/g, '<br>');
+                    html += `<div class="question-text">${formattedText}</div>`;
+                }
+
+                if (q.image) {
+                    html += `<img src="${q.image}" class="question-image" alt="Soru Görseli">`;
+                }
+
+                if (q.layout !== 'none' && (q.options.A || q.options.B || q.options.C || q.options.D)) {
+                    const optsClass = q.layout === 'grid' ? 'options-grid' : 'options-flex';
+                    html += `<div class="${optsClass}">`;
+                    if(q.options.A) html += `<div class="option-item"><span class="option-letter">A)</span> ${q.options.A}</div>`;
+                    if(q.options.B) html += `<div class="option-item"><span class="option-letter">B)</span> ${q.options.B}</div>`;
+                    if(q.options.C) html += `<div class="option-item"><span class="option-letter">C)</span> ${q.options.C}</div>`;
+                    if(q.options.D) html += `<div class="option-item"><span class="option-letter">D)</span> ${q.options.D}</div>`;
+                    html += `</div>`;
+                }
+
+                qDiv.innerHTML = html;
+                container.appendChild(qDiv);
+            });
+        }
+
+        function updateQuestionsList() {
+            const list = document.getElementById('questions-list');
+            document.getElementById('q-count').textContent = questions.length;
+            
+            if (questions.length === 0) {
+                list.innerHTML = '<p class="text-xs text-gray-400 italic">Henüz soru eklenmedi.</p>';
+                return;
+            }
+
+            list.innerHTML = '';
+            questions.forEach((q, index) => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center bg-white p-2 border border-gray-200 rounded text-sm';
+                
+                const previewText = q.text ? (q.text.substring(0, 20) + '...') : '[Görsel Soru]';
+                
+                item.innerHTML = `
+                    <span class="font-medium text-gray-700">Soru ${index + 1}: <span class="text-gray-500 font-normal">${previewText}</span></span>
+                    <button class="text-red-500 hover:text-red-700 p-1" onclick="deleteQuestion('${q.id}')">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                `;
+                list.appendChild(item);
+            });
+            lucide.createIcons();
+        }
+
+        // Global scope'a silme fonksiyonunu ekle
+        window.deleteQuestion = (id) => {
+            questions = questions.filter(q => q.id !== id);
+            renderQuestions();
+            updateQuestionsList();
+        };
+
+        // 5. Kaydetme ve Çıktı Alma
+        document.getElementById('print-test-btn').addEventListener('click', () => {
+            window.print();
+        });
+
+        document.getElementById('save-test-btn').addEventListener('click', async () => {
+            if (!currentUser) {
+                showToast("Kaydetmek için giriş yapmalısınız!");
+                return;
+            }
+            if (questions.length === 0) {
+                showToast("Testte hiç soru yok!");
+                return;
+            }
+
+            try {
+                // Kural 1 ve 3'e uygun veritabanı yolu
+                const testData = {
+                    title: inputs.title.value,
+                    date: inputs.date.value,
+                    level: inputs.level.value,
+                    time: inputs.time.value,
+                    desc: inputs.desc.value,
+                    questions: questions,
+                    createdAt: new Date().toISOString()
+                };
+
+                const userTestsRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'tests');
+                await addDoc(userTestsRef, testData);
+                showToast("Test başarıyla veritabanına kaydedildi!");
+            } catch (error) {
+                console.error("Kaydetme hatası:", error);
+                showToast("Kaydedilirken hata oluştu!");
+            }
+        });
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 3000);
+        }
+
+        // İlk yüklemede a4 ayarlarını yansıt
+        updateA4Settings();
+    </script>
+</body>
+</html>
