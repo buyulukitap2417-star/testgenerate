@@ -64,7 +64,6 @@
             column-gap: 12mm;
             column-rule: 2px dashed #00b0f0;
             column-fill: auto;
-            overflow-x: hidden;
         }
 
         .a4-footer {
@@ -105,7 +104,7 @@
             break-inside: avoid;
             page-break-inside: avoid;
             -webkit-column-break-inside: avoid;
-            display: inline-block; 
+            display: block; /* inline-block column-span özelliğini engelliyordu, block olarak düzeltildi */
             width: 100%;
             margin-bottom: 8mm;
             position: relative;
@@ -116,7 +115,13 @@
         .question-block.span-all {
             column-span: all;
             -webkit-column-span: all;
-            margin-bottom: 12mm; /* Tam genişlikte aralığı biraz açalım */
+            margin-bottom: 12mm;
+            width: 100%;
+        }
+
+        .question-block.span-all .question-image {
+            margin-left: auto;
+            margin-right: auto; /* Tam genişlikte görseli ortala */
         }
 
         .question-number {
