@@ -515,7 +515,12 @@
             if (user) {
                 document.getElementById('user-email-display').textContent = user.email;
                 document.getElementById('dashboard-user-email').textContent = user.email;
-                showDashboard();
+                
+                // DÜZELTME: Sadece Giriş Ekranındaysa Ana Panele yönlendir.
+                // Test ekranındayken arka plan yenilemelerinde sayfayı değiştirme!
+                if (!authScreen.classList.contains('hidden')) {
+                    showDashboard();
+                }
             } else {
                 showAuthScreen();
             }
