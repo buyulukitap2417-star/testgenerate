@@ -41,8 +41,7 @@
 
         .a4-paper {
             width: 210mm;
-            min-height: 297mm;
-            height: max-content;
+            height: 297mm; /* Sabit A4 Yüksekliği */
             background: white;
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
             position: relative;
@@ -50,30 +49,61 @@
             flex-direction: column;
             font-family: Arial, sans-serif;
             color: #333;
+            overflow: hidden;
+            flex-shrink: 0;
         }
 
         .a4-header {
             padding: 15mm 10mm 5mm 10mm;
         }
 
+        /* İki sütunlu alan ve taşma tespiti için özel ayarlar */
         .a4-content {
-            flex: 1;
             padding: 0 10mm;
             column-count: 2;
             column-gap: 12mm;
             column-rule: 2px dashed #00b0f0;
+            column-fill: auto;
+            overflow-x: hidden; /* Taşmayı gizler ama JS ile tespit edebiliriz */
         }
 
         .a4-footer {
             padding: 5mm 10mm;
-            margin-top: 10mm;
+            margin-top: auto; /* En alta iter */
+        }
+
+        /* Filigran (Watermark) */
+        .watermark-container {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .watermark-text {
+            transform: rotate(-45deg);
+            font-size: 8rem;
+            font-weight: 900;
+            color: rgba(0, 176, 240, 0.06);
+            white-space: nowrap;
+            user-select: none;
         }
 
         /* Soru Stilleri */
         .question-block {
+            /* Sütunlar arası bölünmeyi engeller */
             break-inside: avoid;
+            page-break-inside: avoid;
+            -webkit-column-break-inside: avoid;
+            display: inline-block; 
+            width: 100%;
+
             margin-bottom: 8mm;
             position: relative;
+            z-index: 10;
         }
 
         .question-number {
@@ -131,37 +161,41 @@
             margin-right: 5px;
         }
 
-        /* Yazdırma (Print) Stilleri */
+        /* Yazdırma (Print) Stilleri - Düzeltildi */
         @media print {
-            @page {
-                size: A4;
-                margin: 0;
-            }
-            body {
-                background: white;
-            }
-            body > *:not(#print-area) {
-                display: none !important;
+            html, body, #main-screen {
+                height: auto !important;
+                overflow: visible !important;
+                background: white !important;
             }
             #print-area {
+                position: relative !important;
                 display: block !important;
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
             }
             .a4-wrapper {
-                padding: 0;
-                max-height: none;
-                overflow: visible;
+                max-height: none !important;
+                overflow: visible !important;
+                padding: 0 !important;
+                background: white !important;
+                display: block !important;
+            }
+            #pages-container {
+                gap: 0 !important;
+                padding: 0 !important;
+                display: block !important;
             }
             .a4-paper {
-                box-shadow: none;
-                width: 210mm;
-                height: 297mm; /* Tam A4 boyutu */
+                box-shadow: none !important;
+                margin: 0 !important;
+                border: none !important;
                 page-break-after: always;
+                page-break-inside: avoid;
+                height: 297mm !important; 
             }
-            .no-print {
+            .no-print, nav, #editor-sidebar {
                 display: none !important;
             }
         }
@@ -200,7 +234,7 @@
             </form>
             
             <div class="mt-4 text-center">
-                <button id="toggle-auth-mode" class="text-sm text-brand hover:underline">
+                <button type="button" id="toggle-auth-mode" class="text-sm text-brand hover:underline">
                     Hesabınız yok mu? Kayıt Olun
                 </button>
             </div>
@@ -216,7 +250,7 @@
             </div>
             <div class="flex items-center space-x-4">
                 <span id="dashboard-user-email" class="text-sm text-gray-600"></span>
-                <button id="dashboard-logout-btn" class="text-gray-500 hover:text-red-500" title="Çıkış Yap">
+                <button type="button" id="dashboard-logout-btn" class="text-gray-500 hover:text-red-500" title="Çıkış Yap">
                     <i data-lucide="log-out" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -225,7 +259,7 @@
             <div class="max-w-6xl mx-auto">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold text-gray-800">Kayıtlı Testlerim</h2>
-                    <button id="create-new-test-btn" class="bg-brand text-white px-4 py-2 rounded-lg font-bold hover:bg-brandDark flex items-center transition shadow-md">
+                    <button type="button" id="create-new-test-btn" class="bg-brand text-white px-4 py-2 rounded-lg font-bold hover:bg-brandDark flex items-center transition shadow-md">
                         <i data-lucide="plus" class="w-5 h-5 mr-2"></i> Yeni Test Oluştur
                     </button>
                 </div>
@@ -242,8 +276,11 @@
         <!-- Navbar -->
         <nav class="bg-white shadow-sm h-16 flex items-center justify-between px-6 shrink-0 no-print">
             <div class="flex items-center space-x-4">
-                <button id="back-to-dashboard-btn" class="text-gray-500 hover:text-brand flex items-center text-sm font-medium bg-gray-50 px-3 py-1.5 rounded-md border border-gray-200 transition" title="Ana Panele Dön">
+                <button type="button" id="back-to-dashboard-btn" class="text-gray-500 hover:text-brand flex items-center text-sm font-medium bg-gray-50 px-3 py-1.5 rounded-md border border-gray-200 transition" title="Ana Panele Dön">
                     <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Geri
+                </button>
+                <button type="button" id="toggle-sidebar-btn" class="text-brand hover:text-brandDark flex items-center text-sm font-medium bg-blue-50 px-3 py-1.5 rounded-md border border-blue-200 transition" title="Menüyü Aç/Kapat">
+                    <i data-lucide="menu" class="w-4 h-4"></i>
                 </button>
                 <div class="flex items-center space-x-2 border-l pl-4 border-gray-200">
                     <i data-lucide="file-text" class="w-6 h-6 text-brand"></i>
@@ -251,8 +288,11 @@
                 </div>
             </div>
             <div class="flex items-center space-x-4">
-                <span id="user-email-display" class="text-sm text-gray-600"></span>
-                <button id="logout-btn" class="text-gray-500 hover:text-red-500" title="Çıkış Yap">
+                <button type="button" id="print-preview-btn" class="bg-brand text-white text-sm font-bold px-4 py-1.5 rounded hover:bg-brandDark transition flex items-center">
+                    <i data-lucide="printer" class="w-4 h-4 mr-1"></i> Çıktı Al
+                </button>
+                <span id="user-email-display" class="text-sm text-gray-600 border-l pl-4 border-gray-200"></span>
+                <button type="button" id="logout-btn" class="text-gray-500 hover:text-red-500" title="Çıkış Yap">
                     <i data-lucide="log-out" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -262,15 +302,12 @@
         <div class="flex flex-1 overflow-hidden">
             
             <!-- Left Sidebar (Editor) -->
-            <div class="w-96 bg-white border-r border-gray-200 flex flex-col no-print z-10 shadow-lg">
+            <div id="editor-sidebar" class="w-96 bg-white border-r border-gray-200 flex flex-col no-print z-10 shadow-lg transition-all">
                 <div class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
                     <h2 class="font-bold text-gray-700">Araç Kutusu</h2>
                     <div class="flex space-x-2">
-                        <button id="save-test-btn" class="p-2 bg-green-100 text-green-700 rounded hover:bg-green-200 transition" title="Veritabanına Kaydet">
+                        <button type="button" id="save-test-btn" class="p-2 bg-green-100 text-green-700 rounded hover:bg-green-200 transition" title="Veritabanına Kaydet">
                             <i data-lucide="save" class="w-5 h-5"></i>
-                        </button>
-                        <button id="print-test-btn" class="p-2 bg-brand text-white rounded hover:bg-brandDark transition" title="PDF / Çıktı Al">
-                            <i data-lucide="printer" class="w-5 h-5"></i>
                         </button>
                     </div>
                 </div>
@@ -305,6 +342,10 @@
                                 <label class="block text-xs text-gray-500">Alt Başlık Açıklaması</label>
                                 <input type="text" id="setting-desc" value="Aşağıdaki soruları defterinize belirtilen sürede rahatça çözünüz." class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
                             </div>
+                            <div>
+                                <label class="block text-xs text-gray-500">Filigran Yazısı</label>
+                                <input type="text" id="setting-watermark" placeholder="Örn: KURUM ADI" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
+                            </div>
                         </div>
                     </div>
 
@@ -323,7 +364,7 @@
                                 <input type="file" id="q-image" accept="image/*" class="w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-brand file:text-white hover:file:bg-brandDark">
                                 <div id="image-preview-container" class="hidden mt-2 relative">
                                     <img id="q-image-preview" src="" class="h-20 object-contain rounded border border-gray-200 bg-white">
-                                    <button id="remove-image-btn" class="absolute top-1 left-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600">
+                                    <button type="button" id="remove-image-btn" class="absolute top-1 left-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600">
                                         <i data-lucide="x" class="w-3 h-3"></i>
                                     </button>
                                 </div>
@@ -354,7 +395,7 @@
                                     <option value="none">Şık Yok (Sadece Metin/Görsel)</option>
                                 </select>
                             </div>
-                            <button id="add-question-btn" class="w-full bg-brand text-white text-sm font-bold py-2 rounded hover:bg-brandDark transition mt-2 flex items-center justify-center">
+                            <button type="button" id="add-question-btn" class="w-full bg-brand text-white text-sm font-bold py-2 rounded hover:bg-brandDark transition mt-2 flex items-center justify-center">
                                 <i data-lucide="check" class="w-4 h-4 mr-1"></i> Listeye Ekle
                             </button>
                         </div>
@@ -364,7 +405,6 @@
                     <div>
                         <h3 class="text-sm font-bold text-gray-700 mb-2 border-b pb-1">Eklenen Sorular (<span id="q-count">0</span>)</h3>
                         <div id="questions-list" class="space-y-2">
-                            <!-- JS ile doldurulacak -->
                             <p class="text-xs text-gray-400 italic">Henüz soru eklenmedi.</p>
                         </div>
                     </div>
@@ -372,60 +412,12 @@
                 </div>
             </div>
 
-            <!-- Right Preview Area (A4 Paper) -->
+            <!-- Right Preview Area -->
             <div id="print-area" class="flex-1 bg-gray-200 relative">
                 <div class="a4-wrapper">
-                    <!-- A4 Kağıt Container -->
-                    <div class="a4-paper" id="a4-document">
-                        
-                        <!-- A4 Özel Header Tasarımı -->
-                        <div class="a4-header">
-                            <div class="flex items-center justify-between mb-2 relative">
-                                <!-- Sol İkon (Temsili İllüstrasyon) -->
-                                <div class="w-24 h-24 bg-teal-50 rounded-lg flex flex-col items-center justify-center text-teal-600 border border-teal-100">
-                                   <i data-lucide="calendar-days" class="w-10 h-10 mb-1"></i>
-                                   <i data-lucide="check-square" class="w-6 h-6"></i>
-                                </div>
-                                
-                                <!-- Orta Başlıklar -->
-                                <div class="text-center flex-1 px-4">
-                                    <h1 id="render-date" class="text-4xl font-black text-brand tracking-wider mb-1">02-03 MART 2026</h1>
-                                    <h2 id="render-title" class="text-3xl font-black text-gray-800 tracking-wide">GÜNLÜK ÖDEVİ-1</h2>
-                                </div>
-                                
-                                <!-- Sağ İkon (Temsili İllüstrasyon) -->
-                                <div class="w-24 h-24 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 border border-blue-100">
-                                    <i data-lucide="book-open" class="w-12 h-12"></i>
-                                </div>
-                            </div>
-
-                            <!-- Bilgi Çubuğu (Turkuaz Banner) -->
-                            <div class="relative flex items-center bg-brand rounded-full h-10 mt-4 shadow-sm">
-                                <div id="render-level" class="bg-gray-200 text-gray-800 font-bold px-4 py-1.5 rounded-full ml-1 text-sm z-10">
-                                    Orta Seviye
-                                </div>
-                                <div id="render-desc" class="text-white font-medium text-sm ml-4 flex-1">
-                                    Aşağıdaki soruları defterinize belirtilen sürede rahatça çözünüz.
-                                </div>
-                                <!-- Süre Çemberi -->
-                                <div class="absolute -right-2 -top-4 w-16 h-16 bg-brand rounded-full flex flex-col items-center justify-center text-white shadow-md border-4 border-white">
-                                    <span id="render-time" class="font-black text-xl leading-none mt-1">25</span>
-                                    <span class="text-xs font-bold">dk</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Soruların Dizildiği İki Sütunlu Alan -->
-                        <div class="a4-content" id="render-questions">
-                            <!-- Dinamik sorular buraya gelecek -->
-                        </div>
-
-                        <!-- A4 Footer -->
-                        <div class="a4-footer flex items-center justify-between bg-brand text-white rounded-t-xl px-6 py-2">
-                            <div class="font-bold text-lg">Sayfa-1</div>
-                            <div id="render-footer-title" class="font-bold text-lg">02-03 Mart Günü Ödevi-1</div>
-                        </div>
-
+                    <!-- Javascript ile çoklu sayfalar (A4 kağıtları) buraya yerleşecek -->
+                    <div id="pages-container" class="flex flex-col gap-8 pb-8">
+                        <!-- Sayfalar buraya append edilecek -->
                     </div>
                 </div>
             </div>
@@ -441,12 +433,10 @@
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-        // İkonları Başlat
         lucide.createIcons();
 
         // 1. Supabase Kurulumu
         const SUPABASE_URL = 'https://jyqnxmichrguerebexfi.supabase.co';
-        // ÖNEMLİ: Tarayıcı tarafında daima Publishable Key kullanılır. Secret Key ASLA buraya yazılmaz.
         const SUPABASE_KEY = 'sb_publishable_krJCbyOP3AXhaCOt1MUPBA_xkcI-XFO'; 
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -455,27 +445,23 @@
         let isLoginMode = true;
         let pendingImageData = null;
         let currentUser = null;
-        let currentTestId = null; // Düzenlenen testin ID'si
+        let currentTestId = null; 
 
         // UI Elementleri
         const authScreen = document.getElementById('auth-screen');
         const dashboardScreen = document.getElementById('dashboard-screen');
         const mainScreen = document.getElementById('main-screen');
+        const editorSidebar = document.getElementById('editor-sidebar');
         
         const authForm = document.getElementById('auth-form');
-        const authEmail = document.getElementById('auth-email');
-        const authPassword = document.getElementById('auth-password');
-        const authError = document.getElementById('auth-error');
         const toggleAuthModeBtn = document.getElementById('toggle-auth-mode');
         const authSubmitBtn = document.getElementById('auth-submit-btn');
-        
-        const userEmailDisplay = document.getElementById('user-email-display');
-        const dashboardUserEmail = document.getElementById('dashboard-user-email');
-        const logoutBtn = document.getElementById('logout-btn');
-        const dashboardLogoutBtn = document.getElementById('dashboard-logout-btn');
+        const authError = document.getElementById('auth-error');
         
         const createNewTestBtn = document.getElementById('create-new-test-btn');
         const backToDashboardBtn = document.getElementById('back-to-dashboard-btn');
+        const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+        const printPreviewBtn = document.getElementById('print-preview-btn');
         const testsGrid = document.getElementById('tests-grid');
 
         // Ayar Elementleri
@@ -484,18 +470,11 @@
             title: document.getElementById('setting-title'),
             level: document.getElementById('setting-level'),
             time: document.getElementById('setting-time'),
-            desc: document.getElementById('setting-desc')
-        };
-        const renders = {
-            date: document.getElementById('render-date'),
-            title: document.getElementById('render-title'),
-            level: document.getElementById('render-level'),
-            time: document.getElementById('render-time'),
-            desc: document.getElementById('render-desc'),
-            footerTitle: document.getElementById('render-footer-title')
+            desc: document.getElementById('setting-desc'),
+            watermark: document.getElementById('setting-watermark')
         };
 
-        // 2. Auth & Ekran Mantığı
+        // 2. Auth Mantığı
         const initAuth = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             handleAuthChange(session?.user || null);
@@ -508,8 +487,8 @@
         function handleAuthChange(user) {
             currentUser = user;
             if (user) {
-                userEmailDisplay.textContent = user.email;
-                dashboardUserEmail.textContent = user.email;
+                document.getElementById('user-email-display').textContent = user.email;
+                document.getElementById('dashboard-user-email').textContent = user.email;
                 showDashboard();
             } else {
                 showAuthScreen();
@@ -534,11 +513,12 @@
                 inputs.level.value = "Orta Seviye";
                 inputs.time.value = "25";
                 inputs.desc.value = "Aşağıdaki soruları defterinize belirtilen sürede rahatça çözünüz.";
+                inputs.watermark.value = "";
                 clearForm();
                 renderQuestions();
                 updateQuestionsList();
-                updateA4Settings();
             }
+            editorSidebar.classList.remove('hidden'); // Yeni açıldığında sidebar hep açık
             authScreen.classList.add('hidden');
             dashboardScreen.classList.add('hidden');
             mainScreen.classList.remove('hidden');
@@ -551,15 +531,45 @@
             mainScreen.classList.add('hidden');
         }
 
-        // Dashboard İşlemleri
-        createNewTestBtn.addEventListener('click', () => {
-            showMainScreen(true);
+        // Tıklamalar
+        createNewTestBtn.addEventListener('click', () => showMainScreen(true));
+        backToDashboardBtn.addEventListener('click', () => showDashboard());
+        toggleSidebarBtn.addEventListener('click', () => editorSidebar.classList.toggle('hidden'));
+        printPreviewBtn.addEventListener('click', () => window.print());
+
+        toggleAuthModeBtn.addEventListener('click', () => {
+            isLoginMode = !isLoginMode;
+            authSubmitBtn.textContent = isLoginMode ? 'Giriş Yap' : 'Kayıt Ol';
+            toggleAuthModeBtn.textContent = isLoginMode ? 'Hesabınız yok mu? Kayıt Olun' : 'Zaten hesabınız var mı? Giriş Yapın';
+            authError.classList.add('hidden');
         });
 
-        backToDashboardBtn.addEventListener('click', () => {
-            showDashboard();
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            authError.classList.add('hidden');
+
+            try {
+                if (isLoginMode) {
+                    const { error } = await supabase.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabase.auth.signUp({ email, password });
+                    if (error) throw error;
+                    showToast("Kayıt işlemi başarılı! Sisteme giriş yapılıyor...");
+                }
+            } catch (error) {
+                authError.textContent = error.message;
+                authError.classList.remove('hidden');
+            }
         });
 
+        const handleLogout = async () => { await supabase.auth.signOut(); };
+        document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        document.getElementById('dashboard-logout-btn').addEventListener('click', handleLogout);
+
+        // Dashboard Veri Yükleme
         async function loadTests() {
             testsGrid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-8">Testler yükleniyor...</div>';
             
@@ -581,11 +591,12 @@
                         </div>
                     `;
                 } else {
+                    // BAŞLIĞA TIKLAYINCA PDF GÖRÜNTÜLEME EKLENDİ
                     testsGrid.innerHTML = data.map(test => `
                         <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition group relative flex flex-col h-full">
                             <div class="flex-1">
                                 <div class="flex justify-between items-start mb-2">
-                                    <h3 class="font-bold text-lg text-brandDark line-clamp-2">${test.title}</h3>
+                                    <h3 onclick="previewTestAsPDF('${test.id}')" title="Tıkla ve PDF Olarak Görüntüle" class="font-bold text-lg text-brandDark line-clamp-2 cursor-pointer hover:underline hover:text-brand transition">${test.title}</h3>
                                     <span class="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded font-medium">${test.date}</span>
                                 </div>
                                 <p class="text-sm text-gray-500 mb-4 line-clamp-2">${test.desc_text}</p>
@@ -596,16 +607,13 @@
                                     <span class="inline-flex items-center text-xs text-gray-600 bg-gray-50 border border-gray-200 px-2 py-1 rounded">
                                         <i data-lucide="clock" class="w-3 h-3 mr-1"></i> ${test.time} dk
                                     </span>
-                                    <span class="inline-flex items-center text-xs text-gray-600 bg-blue-50 border border-blue-100 px-2 py-1 rounded">
-                                        <i data-lucide="help-circle" class="w-3 h-3 mr-1"></i> ${(test.questions || []).length} Soru
-                                    </span>
                                 </div>
                             </div>
                             <div class="flex gap-2 pt-4 border-t border-gray-100 mt-auto">
-                                <button onclick="openTest('${test.id}')" class="flex-1 bg-brand text-white py-2 rounded text-sm font-medium hover:bg-brandDark transition flex items-center justify-center">
+                                <button type="button" onclick="openTest('${test.id}')" class="flex-1 bg-brand text-white py-2 rounded text-sm font-medium hover:bg-brandDark transition flex items-center justify-center">
                                     <i data-lucide="edit-3" class="w-4 h-4 mr-1"></i> Düzenle
                                 </button>
-                                <button onclick="deleteTestRecord('${test.id}')" class="p-2 bg-red-50 text-red-600 rounded hover:bg-red-100 transition" title="Sil">
+                                <button type="button" onclick="deleteTestRecord('${test.id}')" class="p-2 bg-red-50 text-red-600 rounded hover:bg-red-100 transition" title="Sil">
                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                                 </button>
                             </div>
@@ -614,12 +622,11 @@
                 }
                 lucide.createIcons();
             } catch (error) {
-                console.error("Yükleme hatası:", error);
                 testsGrid.innerHTML = '<div class="col-span-full text-center text-red-500">Testler yüklenirken bir hata oluştu.</div>';
             }
         }
 
-        window.openTest = async (id) => {
+        window.openTest = async (id, isPreview = false) => {
             try {
                 const { data, error } = await supabase.from('tests').select('*').eq('id', id).single();
                 if (error) throw error;
@@ -632,15 +639,23 @@
                 inputs.desc.value = data.desc_text;
                 questions = data.questions || [];
 
-                updateA4Settings();
                 renderQuestions();
                 updateQuestionsList();
                 showMainScreen();
+
+                if (isPreview) {
+                    editorSidebar.classList.add('hidden');
+                    setTimeout(() => window.print(), 500); // Açıldıktan yarım saniye sonra yazdırma ekranı (PDF Önizleme)
+                }
             } catch (error) {
-                console.error("Test açılma hatası:", error);
                 showToast("Test yüklenemedi!");
             }
         };
+
+        // Başlığa Tıklandığında PDF modunda aç
+        window.previewTestAsPDF = (id) => {
+            window.openTest(id, true);
+        }
 
         window.deleteTestRecord = async (id) => {
             if (!confirm("Bu testi silmek istediğinize emin misiniz?")) return;
@@ -654,44 +669,10 @@
             }
         };
 
-        // Auth Form İşlemleri
-        toggleAuthModeBtn.addEventListener('click', () => {
-            isLoginMode = !isLoginMode;
-            authSubmitBtn.textContent = isLoginMode ? 'Giriş Yap' : 'Kayıt Ol';
-            toggleAuthModeBtn.textContent = isLoginMode ? 'Hesabınız yok mu? Kayıt Olun' : 'Zaten hesabınız var mı? Giriş Yapın';
-            authError.classList.add('hidden');
-        });
-
-        authForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = authEmail.value;
-            const password = authPassword.value;
-            authError.classList.add('hidden');
-
-            try {
-                if (isLoginMode) {
-                    const { error } = await supabase.auth.signInWithPassword({ email, password });
-                    if (error) throw error;
-                } else {
-                    const { error } = await supabase.auth.signUp({ email, password });
-                    if (error) throw error;
-                    showToast("Kayıt işlemi başarılı! Sisteme giriş yapılıyor...");
-                }
-            } catch (error) {
-                authError.textContent = error.message;
-                authError.classList.remove('hidden');
-            }
-        });
-
-        const handleLogout = async () => { await supabase.auth.signOut(); };
-        logoutBtn.addEventListener('click', handleLogout);
-        dashboardLogoutBtn.addEventListener('click', handleLogout);
-
-        // 3. Resim Sıkıştırma (Base64)
+        // 3. Resim Yükleme (Base64)
         const qImageInput = document.getElementById('q-image');
         const imagePreviewContainer = document.getElementById('image-preview-container');
         const qImagePreview = document.getElementById('q-image-preview');
-        const removeImageBtn = document.getElementById('remove-image-btn');
 
         qImageInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -717,7 +698,6 @@
                     ctx.drawImage(img, 0, 0, width, height);
                     
                     pendingImageData = canvas.toDataURL('image/jpeg', 0.7);
-                    
                     qImagePreview.src = pendingImageData;
                     imagePreviewContainer.classList.remove('hidden');
                 };
@@ -726,24 +706,33 @@
             reader.readAsDataURL(file);
         });
 
-        removeImageBtn.addEventListener('click', () => {
+        document.getElementById('remove-image-btn').addEventListener('click', () => {
             pendingImageData = null;
             qImageInput.value = '';
             imagePreviewContainer.classList.add('hidden');
         });
 
-        // 4. Soru Ekleme ve A4 Render Mantığı
+        // 4. OTOMATİK SAYFALAMA VE A4 RENDER MANTIĞI
         Object.values(inputs).forEach(input => {
             input.addEventListener('input', updateA4Settings);
         });
 
         function updateA4Settings() {
-            renders.date.textContent = inputs.date.value || 'Tarih';
-            renders.title.textContent = inputs.title.value || 'BAŞLIK';
-            renders.level.textContent = inputs.level.value || 'Seviye';
-            renders.time.textContent = inputs.time.value || '0';
-            renders.desc.textContent = inputs.desc.value || '';
-            renders.footerTitle.textContent = `${inputs.date.value} Ödevi`;
+            const dateVal = inputs.date.value || 'Tarih';
+            const titleVal = inputs.title.value || 'BAŞLIK';
+            const levelVal = inputs.level.value || 'Seviye';
+            const timeVal = inputs.time.value || '0';
+            const descVal = inputs.desc.value || '';
+            const watermarkVal = inputs.watermark.value || '';
+            const footerTitleVal = `${inputs.date.value} Ödevi`;
+
+            document.querySelectorAll('.render-date').forEach(el => el.textContent = dateVal);
+            document.querySelectorAll('.render-title').forEach(el => el.textContent = titleVal);
+            document.querySelectorAll('.render-level').forEach(el => el.textContent = levelVal);
+            document.querySelectorAll('.render-time').forEach(el => el.textContent = timeVal);
+            document.querySelectorAll('.render-desc').forEach(el => el.textContent = descVal);
+            document.querySelectorAll('.render-watermark').forEach(el => el.textContent = watermarkVal);
+            document.querySelectorAll('.render-footer-title').forEach(el => el.textContent = footerTitleVal);
         }
 
         document.getElementById('add-question-btn').addEventListener('click', () => {
@@ -759,15 +748,14 @@
                 return;
             }
 
-            const newQuestion = {
+            questions.push({
                 id: Date.now().toString(),
                 text,
                 image: pendingImageData,
                 options: { A: optA, B: optB, C: optC, D: optD },
                 layout
-            };
+            });
 
-            questions.push(newQuestion);
             renderQuestions();
             updateQuestionsList();
             clearForm();
@@ -780,26 +768,100 @@
             document.getElementById('q-optB').value = '';
             document.getElementById('q-optC').value = '';
             document.getElementById('q-optD').value = '';
-            removeImageBtn.click(); 
+            document.getElementById('remove-image-btn').click(); 
+        }
+
+        function createPageDom(pageNum) {
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'a4-paper';
+            
+            // Filigran
+            pageDiv.innerHTML = `<div class="watermark-container"><div class="watermark-text render-watermark"></div></div>`;
+
+            // Özel Başlık (Sayfa 1 vs Diğerleri)
+            let headerHTML = '';
+            if (pageNum === 1) {
+                headerHTML = `
+                    <div class="a4-header z-10 relative">
+                        <div class="flex items-center justify-between mb-2 relative">
+                            <div class="w-24 h-24 bg-teal-50 rounded-lg flex flex-col items-center justify-center text-teal-600 border border-teal-100">
+                               <i data-lucide="calendar-days" class="w-10 h-10 mb-1"></i>
+                               <i data-lucide="check-square" class="w-6 h-6"></i>
+                            </div>
+                            <div class="text-center flex-1 px-4">
+                                <h1 class="text-4xl font-black text-brand tracking-wider mb-1 render-date"></h1>
+                                <h2 class="text-3xl font-black text-gray-800 tracking-wide render-title"></h2>
+                            </div>
+                            <div class="w-24 h-24 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 border border-blue-100">
+                                <i data-lucide="book-open" class="w-12 h-12"></i>
+                            </div>
+                        </div>
+                        <div class="relative flex items-center bg-brand rounded-full h-10 mt-4 shadow-sm">
+                            <div class="bg-gray-200 text-gray-800 font-bold px-4 py-1.5 rounded-full ml-1 text-sm z-10 render-level"></div>
+                            <div class="text-white font-medium text-sm ml-4 flex-1 render-desc"></div>
+                            <div class="absolute -right-2 -top-4 w-16 h-16 bg-brand rounded-full flex flex-col items-center justify-center text-white shadow-md border-4 border-white">
+                                <span class="font-black text-xl leading-none mt-1 render-time"></span>
+                                <span class="text-xs font-bold">dk</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Diğer sayfalar için sade başlık
+                headerHTML = `
+                    <div class="a4-header z-10 relative pb-2" style="padding-top: 10mm;">
+                        <div class="relative flex items-center bg-brand rounded-full h-10 shadow-sm">
+                            <div class="bg-gray-200 text-gray-800 font-bold px-4 py-1.5 rounded-full ml-1 text-sm z-10 render-level"></div>
+                            <div class="text-white font-medium text-sm ml-4 flex-1 render-desc"></div>
+                        </div>
+                    </div>
+                `;
+            }
+            pageDiv.insertAdjacentHTML('beforeend', headerHTML);
+
+            // Soru Sütunları Alanı
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'a4-content z-10 relative';
+            // Sayfa 1'de başlık büyük olduğu için yükseklik daha az
+            contentDiv.style.height = pageNum === 1 ? '205mm' : '240mm'; 
+            pageDiv.appendChild(contentDiv);
+
+            // Footer
+            pageDiv.insertAdjacentHTML('beforeend', `
+                <div class="a4-footer z-10 relative flex items-center justify-between bg-brand text-white rounded-t-xl px-6 py-2">
+                    <div class="font-bold text-lg">Sayfa-${pageNum}</div>
+                    <div class="font-bold text-lg render-footer-title"></div>
+                </div>
+            `);
+
+            document.getElementById('pages-container').appendChild(pageDiv);
+            return contentDiv;
         }
 
         function renderQuestions() {
-            const container = document.getElementById('render-questions');
+            const container = document.getElementById('pages-container');
             container.innerHTML = '';
+            
+            if (questions.length === 0) {
+                createPageDom(1);
+                updateA4Settings();
+                lucide.createIcons();
+                return;
+            }
+
+            let pageNum = 1;
+            let currentContentDiv = createPageDom(pageNum);
 
             questions.forEach((q, index) => {
                 const qDiv = document.createElement('div');
                 qDiv.className = 'question-block';
 
                 let html = `<div class="question-number">${index + 1}</div>`;
-                
                 if (q.text) {
-                    const formattedText = q.text.replace(/\n/g, '<br>');
-                    html += `<div class="question-text">${formattedText}</div>`;
+                    html += `<div class="question-text">${q.text.replace(/\n/g, '<br>')}</div>`;
                 }
-
                 if (q.image) {
-                    html += `<img src="${q.image}" class="question-image" alt="Soru Görseli">`;
+                    html += `<img src="${q.image}" class="question-image" alt="">`;
                 }
 
                 if (q.layout !== 'none' && (q.options.A || q.options.B || q.options.C || q.options.D)) {
@@ -813,14 +875,24 @@
                 }
 
                 qDiv.innerHTML = html;
-                container.appendChild(qDiv);
+                currentContentDiv.appendChild(qDiv);
+
+                // Eğer eklenen soru sayfanın sağına taştıysa (Sayfa Dolduysa)
+                if (currentContentDiv.scrollWidth > currentContentDiv.clientWidth + 5) {
+                    currentContentDiv.removeChild(qDiv); // O sayfadan çıkar
+                    pageNum++;
+                    currentContentDiv = createPageDom(pageNum); // Yeni A4 Sayfası Yarat
+                    currentContentDiv.appendChild(qDiv); // Yeni sayfaya ekle
+                }
             });
+
+            updateA4Settings();
+            lucide.createIcons();
         }
 
         function updateQuestionsList() {
             const list = document.getElementById('questions-list');
             document.getElementById('q-count').textContent = questions.length;
-            
             if (questions.length === 0) {
                 list.innerHTML = '<p class="text-xs text-gray-400 italic">Henüz soru eklenmedi.</p>';
                 return;
@@ -830,12 +902,10 @@
             questions.forEach((q, index) => {
                 const item = document.createElement('div');
                 item.className = 'flex justify-between items-center bg-white p-2 border border-gray-200 rounded text-sm';
-                
-                const previewText = q.text ? (q.text.substring(0, 20) + '...') : '[Görsel Soru]';
-                
+                const previewText = q.text ? (q.text.substring(0, 20) + '...') : '[Görsel]';
                 item.innerHTML = `
                     <span class="font-medium text-gray-700">Soru ${index + 1}: <span class="text-gray-500 font-normal">${previewText}</span></span>
-                    <button class="text-red-500 hover:text-red-700 p-1" onclick="deleteQuestion('${q.id}')">
+                    <button type="button" class="text-red-500 hover:text-red-700 p-1" onclick="deleteQuestion('${q.id}')">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
                 `;
@@ -850,20 +920,10 @@
             updateQuestionsList();
         };
 
-        // 5. Kaydetme ve Çıktı Alma (Supabase)
-        document.getElementById('print-test-btn').addEventListener('click', () => {
-            window.print();
-        });
-
+        // 5. Kaydetme
         document.getElementById('save-test-btn').addEventListener('click', async () => {
-            if (!currentUser) {
-                showToast("Kaydetmek için giriş yapmalısınız!");
-                return;
-            }
-            if (questions.length === 0) {
-                showToast("Testte hiç soru yok!");
-                return;
-            }
+            if (!currentUser) { showToast("Giriş yapmalısınız!"); return; }
+            if (questions.length === 0) { showToast("Test boş!"); return; }
 
             try {
                 const testData = {
@@ -872,35 +932,21 @@
                     date: inputs.date.value,
                     level: inputs.level.value,
                     time: inputs.time.value,
-                    desc_text: inputs.desc.value, // SQL'deki sütunla eşleşti
+                    desc_text: inputs.desc.value,
                     questions: questions 
                 };
 
                 if (currentTestId) {
-                    // Kayıtlı bir testi güncelliyoruz
-                    const { error } = await supabase
-                        .from('tests') 
-                        .update(testData)
-                        .eq('id', currentTestId);
-
-                    if (error) throw error;
-                    showToast("Test başarıyla güncellendi!");
+                    await supabase.from('tests').update(testData).eq('id', currentTestId);
+                    showToast("Güncellendi!");
                 } else {
-                    // Tamamen yeni bir test ekliyoruz
-                    const { data, error } = await supabase
-                        .from('tests') 
-                        .insert([testData])
-                        .select(); // Eklenen verinin ID'sini almak için
-
+                    const { data, error } = await supabase.from('tests').insert([testData]).select();
                     if (error) throw error;
-                    if (data && data.length > 0) {
-                        currentTestId = data[0].id; // Testin artık ID'si var, tekrar kaydedildiğinde üstüne yazar
-                    }
-                    showToast("Yeni test Supabase'e kaydedildi!");
+                    if (data && data.length > 0) currentTestId = data[0].id;
+                    showToast("Yeni test kaydedildi!");
                 }
             } catch (error) {
-                console.error("Kaydetme hatası:", error);
-                showToast("Hata: " + (error.message || "Kaydedilemedi."));
+                showToast("Kaydedilemedi!");
             }
         });
 
@@ -911,8 +957,6 @@
             setTimeout(() => toast.classList.add('opacity-0'), 3000);
         }
 
-        // İlk yüklemede a4 ayarlarını yansıt
-        updateA4Settings();
     </script>
 </body>
 </html>
