@@ -64,6 +64,8 @@
             column-gap: 12mm;
             column-rule: 2px dashed #00b0f0;
             column-fill: auto;
+            overflow-y: hidden; /* Dikey taşmayı gizle ki JS ile boyutunu ölçebilelim */
+            overflow-x: hidden;
         }
 
         .a4-footer {
@@ -307,7 +309,7 @@
             </div>
             <div class="flex items-center space-x-4">
                 <button type="button" id="print-preview-btn" class="bg-brand text-white text-sm font-bold px-4 py-1.5 rounded hover:bg-brandDark transition flex items-center">
-                    <i data-lucide="printer" class="w-4 h-4 mr-1"></i> Çıktı Al
+                    <i data-lucide="printer" class="w-4 h-4 mr-1"></i> Çıktı Al / PDF
                 </button>
                 <span id="user-email-display" class="text-sm text-gray-600 border-l pl-4 border-gray-200"></span>
                 <button type="button" id="logout-btn" class="text-gray-500 hover:text-red-500" title="Çıkış Yap">
@@ -368,6 +370,11 @@
                                 <label class="block text-xs text-gray-500">Veya Görsel Seçin</label>
                                 <input type="file" id="setting-watermark-img" accept="image/*" class="mt-1 w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-gray-200 hover:file:bg-gray-300">
                                 <button type="button" id="remove-watermark-img-btn" class="hidden text-xs text-red-500 mt-1 hover:underline">Görsel Filigranı Kaldır</button>
+                            </div>
+                            <!-- PDF Dosya Adı Ayarı -->
+                            <div class="pt-2 border-t border-gray-200">
+                                <label class="block text-xs font-bold text-gray-600">İndirilecek PDF Dosya Adı</label>
+                                <input type="text" id="setting-filename" placeholder="Örn: 8_Sinif_Haftasonu_Odevi" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
                             </div>
                         </div>
                     </div>
@@ -453,13 +460,25 @@
                                     <input type="text" id="q-optD" class="mt-1 w-full text-sm border-gray-300 rounded p-1 border focus:ring-brand focus:border-brand">
                                 </div>
                             </div>
-                            <div>
-                                <label class="block text-xs text-gray-500">Şık Dizilimi</label>
-                                <select id="q-layout" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
-                                    <option value="flex">Yan Yana (A B C D)</option>
-                                    <option value="grid">2x2 Izgara (A B altlı üstlü C D)</option>
-                                    <option value="none">Şık Yok (Sadece Metin/Görsel)</option>
-                                </select>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs text-gray-500">Şık Dizilimi</label>
+                                    <select id="q-layout" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
+                                        <option value="flex">Yan Yana (A B C D)</option>
+                                        <option value="grid">2x2 Izgara (Altlı Üstlü)</option>
+                                        <option value="none">Şık Yok (Görsel/Metin)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-green-600">Doğru Cevap</label>
+                                    <select id="q-correct" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-green-500 focus:border-green-500">
+                                        <option value="none">Seçilmedi (Boş)</option>
+                                        <option value="A">A Şıkkı</option>
+                                        <option value="B">B Şıkkı</option>
+                                        <option value="C">C Şıkkı</option>
+                                        <option value="D">D Şıkkı</option>
+                                    </select>
+                                </div>
                             </div>
                             <button type="button" id="add-question-btn" class="w-full bg-brand text-white text-sm font-bold py-2 rounded hover:bg-brandDark transition mt-2 flex items-center justify-center">
                                 <i data-lucide="check" class="w-4 h-4 mr-1"></i> Listeye Ekle
@@ -489,6 +508,42 @@
         </div>
     </div>
 
+    <!-- Başlık Düzenleme Modalı -->
+    <div id="edit-header-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-md">
+            <h2 class="text-lg font-bold text-purple-800 mb-4 border-b pb-2">Başlığı Düzenle</h2>
+            <input type="hidden" id="edit-h-id">
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs text-gray-600">Tarih / Başlık 1</label>
+                    <input type="text" id="edit-h-date" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-600">Ana Başlık</label>
+                    <input type="text" id="edit-h-title" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border">
+                </div>
+                <div class="flex space-x-2">
+                    <div class="flex-1">
+                        <label class="block text-xs text-gray-600">Seviye</label>
+                        <input type="text" id="edit-h-level" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border">
+                    </div>
+                    <div class="w-20">
+                        <label class="block text-xs text-gray-600">Süre (dk)</label>
+                        <input type="text" id="edit-h-time" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-600">Açıklama</label>
+                    <input type="text" id="edit-h-desc" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 mt-6">
+                <button type="button" id="close-edit-modal-btn" class="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200">İptal</button>
+                <button type="button" id="save-edit-header-btn" class="px-4 py-2 text-sm text-white bg-purple-600 rounded hover:bg-purple-700 font-bold">Güncelle</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase Bildirim Modalı -->
     <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none z-50">
         Mesaj
@@ -506,7 +561,7 @@
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // Uygulama State'i
-        let questions = []; // Artık hem "soruları" hem de "yeni test başlıklarını" tutacak
+        let questions = []; 
         let isLoginMode = true;
         let pendingImageData = null;
         let currentUser = null;
@@ -531,7 +586,8 @@
             level: document.getElementById('setting-level'),
             time: document.getElementById('setting-time'),
             desc: document.getElementById('setting-desc'),
-            watermark: document.getElementById('setting-watermark')
+            watermark: document.getElementById('setting-watermark'),
+            filename: document.getElementById('setting-filename')
         };
 
         // 2. Auth Mantığı
@@ -576,6 +632,7 @@
                 inputs.time.value = "25";
                 inputs.desc.value = "Aşağıdaki soruları defterinize belirtilen sürede rahatça çözünüz.";
                 inputs.watermark.value = "";
+                inputs.filename.value = "Test_Robotu_Cikti";
                 document.getElementById('remove-watermark-img-btn').click(); 
                 clearForm();
                 renderQuestions();
@@ -598,7 +655,16 @@
         document.getElementById('create-new-test-btn').addEventListener('click', () => showMainScreen(true));
         document.getElementById('back-to-dashboard-btn').addEventListener('click', () => showDashboard());
         document.getElementById('toggle-sidebar-btn').addEventListener('click', () => editorSidebar.classList.toggle('hidden'));
-        document.getElementById('print-preview-btn').addEventListener('click', () => window.print());
+        
+        // ÖZEL PDF ADI VE YAZDIRMA
+        document.getElementById('print-preview-btn').addEventListener('click', () => {
+            const customName = inputs.filename.value.trim();
+            const originalTitle = document.title;
+            if(customName) { document.title = customName; }
+            window.print();
+            document.title = originalTitle; // İşlem bitince eski title'a dön
+        });
+
         document.getElementById('toggle-auth-mode').addEventListener('click', () => {
             isLoginMode = !isLoginMode;
             document.getElementById('auth-submit-btn').textContent = isLoginMode ? 'Giriş Yap' : 'Kayıt Ol';
@@ -674,6 +740,7 @@
                 inputs.level.value = data.level;
                 inputs.time.value = data.time;
                 inputs.desc.value = data.desc_text;
+                inputs.filename.value = data.title.replace(/\s+/g, '_'); // Eski testleri açınca ismini title'a uyarla
                 questions = data.questions || [];
 
                 renderQuestions();
@@ -682,7 +749,7 @@
 
                 if (isPreview) {
                     editorSidebar.classList.add('hidden');
-                    setTimeout(() => window.print(), 500);
+                    setTimeout(() => document.getElementById('print-preview-btn').click(), 500);
                 }
             } catch (error) {
                 showToast("Test yüklenemedi!");
@@ -764,7 +831,7 @@
             reader.readAsDataURL(file);
         }
 
-        // --- YENİ BÖLÜM / GÜN EKLEME MANTIĞI ---
+        // --- YENİ BÖLÜM / GÜN EKLEME & DÜZENLEME MANTIĞI ---
         toggleNewTestFormBtn.addEventListener('click', () => {
             newTestForm.classList.toggle('hidden');
             newTestIcon.style.transform = newTestForm.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
@@ -777,14 +844,12 @@
             const hTime = document.getElementById('h-time').value.trim() || '0';
             const hDesc = document.getElementById('h-desc').value.trim() || '';
 
-            // Özel "header" (başlık) objesini listeye soru gibi ekliyoruz
             questions.push({
                 id: Date.now().toString(),
                 type: 'header',
                 settings: { date: hDate, title: hTitle, level: hLevel, time: hTime, desc: hDesc }
             });
 
-            // Formu temizle ve gizle
             document.getElementById('h-date').value = '';
             document.getElementById('h-title').value = '';
             newTestForm.classList.add('hidden');
@@ -792,17 +857,55 @@
 
             renderQuestions();
             updateQuestionsList();
-            showToast("Yeni test başlığı başarıyla listeye eklendi!");
+            showToast("Yeni test başlığı eklendi!");
         });
 
-        // --- RENDER VE DÜZENLEME MANTIĞI ---
+        // Başlık Düzenleme İşlemleri
+        const editHeaderModal = document.getElementById('edit-header-modal');
+        
+        window.openEditHeaderModal = (id) => {
+            const hq = questions.find(q => q.id === id);
+            if(!hq || hq.type !== 'header') return;
+
+            document.getElementById('edit-h-id').value = hq.id;
+            document.getElementById('edit-h-date').value = hq.settings.date;
+            document.getElementById('edit-h-title').value = hq.settings.title;
+            document.getElementById('edit-h-level').value = hq.settings.level;
+            document.getElementById('edit-h-time').value = hq.settings.time;
+            document.getElementById('edit-h-desc').value = hq.settings.desc;
+
+            editHeaderModal.classList.remove('hidden');
+        };
+
+        document.getElementById('close-edit-modal-btn').addEventListener('click', () => {
+            editHeaderModal.classList.add('hidden');
+        });
+
+        document.getElementById('save-edit-header-btn').addEventListener('click', () => {
+            const id = document.getElementById('edit-h-id').value;
+            const hqIndex = questions.findIndex(q => q.id === id);
+            if(hqIndex !== -1) {
+                questions[hqIndex].settings = {
+                    date: document.getElementById('edit-h-date').value,
+                    title: document.getElementById('edit-h-title').value,
+                    level: document.getElementById('edit-h-level').value,
+                    time: document.getElementById('edit-h-time').value,
+                    desc: document.getElementById('edit-h-desc').value,
+                };
+                renderQuestions();
+                updateQuestionsList();
+                editHeaderModal.classList.add('hidden');
+                showToast("Başlık güncellendi!");
+            }
+        });
+
+
+        // --- RENDER MANTIĞI ---
         Object.values(inputs).forEach(input => {
             input.addEventListener('input', updateA4Settings);
         });
 
         function updateA4Settings() {
-            // Global (İlk Testin) ayarlarını sadece ".global-bind" class'ı olanlarda günceller.
-            // Böylece 2. gün, 3. gün testlerinin başlıkları etkilenmez.
             const dateVal = inputs.date.value || 'Tarih';
             const titleVal = inputs.title.value || 'BAŞLIK';
             const levelVal = inputs.level.value || 'Seviye';
@@ -818,7 +921,6 @@
             document.querySelectorAll('.global-bind .render-desc').forEach(el => el.textContent = descVal);
             document.querySelectorAll('.global-bind .render-footer-title').forEach(el => el.textContent = footerTitleVal);
 
-            // Filigran her sayfaya uygulanır
             document.querySelectorAll('.watermark-container').forEach(container => {
                 if (globalWatermarkImage) {
                     container.innerHTML = `<img src="${globalWatermarkImage}" class="watermark-image">`;
@@ -836,6 +938,7 @@
             const optD = document.getElementById('q-optD').value.trim();
             const layout = document.getElementById('q-layout').value;
             const spanWidth = document.getElementById('q-span').value; 
+            const correctAnswer = document.getElementById('q-correct').value; // Doğru Cevap
 
             if (!text && !pendingImageData) {
                 showToast("Lütfen soru metni veya görsel ekleyin!");
@@ -844,12 +947,13 @@
 
             questions.push({
                 id: Date.now().toString(),
-                type: 'question', // Varsayılan tip soru
+                type: 'question',
                 text,
                 image: pendingImageData,
                 options: { A: optA, B: optB, C: optC, D: optD },
                 layout,
-                spanWidth 
+                spanWidth,
+                correctAnswer // Veritabanına da kaydedilecek
             });
 
             renderQuestions();
@@ -865,17 +969,15 @@
             document.getElementById('q-optC').value = '';
             document.getElementById('q-optD').value = '';
             document.getElementById('q-span').value = 'normal'; 
+            document.getElementById('q-correct').value = 'none'; // Cevabı sıfırla
             document.getElementById('remove-image-btn').click(); 
         }
 
         function createPageDom(pageNum, isMainHeader = false, activeSettings, isGlobal = true) {
             const pageDiv = document.createElement('div');
-            // Global ise global-bind ekliyoruz ki sidebar'dan anlık güncellenebilsin.
             pageDiv.className = `a4-paper ${isGlobal ? 'global-bind' : ''}`;
-            
             pageDiv.innerHTML = `<div class="watermark-container"></div>`;
 
-            // Verileri HTML içine direkt gömüyoruz
             const tDate = activeSettings.date || 'Tarih';
             const tTitle = activeSettings.title || 'Başlık';
             const tLevel = activeSettings.level || 'Seviye';
@@ -942,7 +1044,6 @@
             const container = document.getElementById('pages-container');
             container.innerHTML = '';
             
-            // Başlangıç Ayarları: En üstteki menüde yer alan Global Değerler
             let activeSettings = {
                 date: inputs.date.value,
                 title: inputs.title.value,
@@ -955,7 +1056,7 @@
             let isGlobal = true;
             let pageNum = 1;
             let currentContentDiv = createPageDom(pageNum, true, activeSettings, isGlobal);
-            let displayQNum = 1; // Soru Numarası Sayacı
+            let displayQNum = 1; 
 
             if (questions.length === 0) {
                 updateA4Settings();
@@ -964,19 +1065,15 @@
             }
 
             questions.forEach((q) => {
-                // EĞER OBJENİN TİPİ YENİ TEST BAŞLIĞI İSE:
                 if (q.type === 'header') {
-                    // Ayarları bu testin başlığıyla değiştir
                     activeSettings = { ...activeSettings, ...q.settings };
-                    isGlobal = false; // Artık Global ayarlara bağlı değil
-                    pageNum++; // Yeni sayfaya atla
-                    displayQNum = 1; // Soru numaralarını her testte baştan 1'e al!
-                    
+                    isGlobal = false; 
+                    pageNum++; 
+                    displayQNum = 1; 
                     currentContentDiv = createPageDom(pageNum, true, activeSettings, isGlobal);
-                    return; // Soru bloğu oluşturmadan sonraki döngüye geç
+                    return; 
                 }
 
-                // NORMAL SORU RENDER İŞLEMİ
                 const qDiv = document.createElement('div');
                 qDiv.className = q.spanWidth === 'all' ? 'question-block span-all' : 'question-block';
 
@@ -1000,16 +1097,59 @@
 
                 qDiv.innerHTML = html;
                 currentContentDiv.appendChild(qDiv);
-                displayQNum++; // Numara Sayacını artır
+                displayQNum++; 
 
-                // Soru taşma (Sayfa dolması) durumu
-                if (currentContentDiv.scrollWidth > currentContentDiv.clientWidth + 5) {
+                // TİTİZ TAŞMA KONTROLÜ (Pagination Fix)
+                // İçerik, kapsayıcı yükseklik veya genişliği aşarsa taşmıştır demektir
+                const isOverflowing = currentContentDiv.scrollWidth > currentContentDiv.clientWidth + 5 || currentContentDiv.scrollHeight > currentContentDiv.clientHeight + 5;
+                
+                if (isOverflowing) {
                     currentContentDiv.removeChild(qDiv); 
                     pageNum++;
-                    currentContentDiv = createPageDom(pageNum, false, activeSettings, isGlobal); // false: küçük başlık kullan
+                    currentContentDiv = createPageDom(pageNum, false, activeSettings, isGlobal); 
                     currentContentDiv.appendChild(qDiv); 
                 }
             });
+
+            // --- CEVAP ANAHTARI SAYFASI OLUŞTURMA ---
+            const hasAnswers = questions.some(q => q.type === 'question' && q.correctAnswer && q.correctAnswer !== 'none');
+            
+            if (hasAnswers) {
+                pageNum++;
+                // Cevap anahtarı her zaman kendi bağımsız sayfasında çıkar
+                let keyContentDiv = createPageDom(pageNum, false, activeSettings, false);
+                
+                // Tam genişlikte şık bir kap
+                const keyContainer = document.createElement('div');
+                keyContainer.className = 'w-full p-6 span-all bg-white rounded-xl border-4 border-brand shadow-sm';
+                keyContainer.innerHTML = '<h3 class="text-3xl font-black text-center text-brand mb-6 uppercase tracking-widest">CEVAP ANAHTARI</h3>';
+                
+                let currentTestTitle = inputs.title.value || "Ana Test";
+                let currentQNum = 1;
+                
+                let sectionHtml = `<div class="mb-6"><h4 class="font-bold text-gray-800 text-lg border-b-2 border-gray-200 pb-2 mb-4">${currentTestTitle}</h4><div class="grid grid-cols-4 md:grid-cols-5 gap-4 text-base">`;
+                
+                questions.forEach(q => {
+                    if (q.type === 'header') {
+                        // Önceki bölümü kapat
+                        sectionHtml += `</div></div>`;
+                        keyContainer.insertAdjacentHTML('beforeend', sectionHtml);
+                        
+                        // Yeni bölümü başlat
+                        currentTestTitle = q.settings.title;
+                        currentQNum = 1;
+                        sectionHtml = `<div class="mb-6 mt-4"><h4 class="font-bold text-gray-800 text-lg border-b-2 border-gray-200 pb-2 mb-4">${currentTestTitle}</h4><div class="grid grid-cols-4 md:grid-cols-5 gap-4 text-base">`;
+                    } else if (q.type === 'question') {
+                        const ans = (q.correctAnswer && q.correctAnswer !== 'none') ? `<span class="font-bold text-brand bg-brand/10 px-2 py-0.5 rounded">${q.correctAnswer}</span>` : '-';
+                        sectionHtml += `<div class="flex items-center"><div class="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center font-bold text-sm mr-2">${currentQNum}</div>${ans}</div>`;
+                        currentQNum++;
+                    }
+                });
+                
+                sectionHtml += `</div></div>`;
+                keyContainer.insertAdjacentHTML('beforeend', sectionHtml);
+                keyContentDiv.appendChild(keyContainer);
+            }
 
             updateA4Settings();
             lucide.createIcons();
@@ -1029,19 +1169,28 @@
                 const item = document.createElement('div');
                 
                 if (q.type === 'header') {
-                    qCounter = 1; // Soru Sayacını Sıfırla
+                    qCounter = 1; 
                     item.className = 'flex justify-between items-center bg-purple-100 p-2 border border-purple-200 rounded text-sm mb-1';
                     item.innerHTML = `
-                        <span class="font-bold text-purple-800 flex items-center"><i data-lucide="file-plus" class="w-4 h-4 mr-1"></i> Yeni Test: ${q.settings.title}</span>
-                        <button type="button" class="text-red-500 hover:text-red-700 p-1 bg-white rounded-full shadow-sm" onclick="deleteQuestion('${q.id}')">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
+                        <span class="font-bold text-purple-800 flex items-center"><i data-lucide="file-plus" class="w-4 h-4 mr-1"></i> ${q.settings.title}</span>
+                        <div class="flex space-x-1">
+                            <button type="button" class="text-purple-600 hover:text-purple-800 p-1 bg-white rounded shadow-sm" onclick="openEditHeaderModal('${q.id}')" title="Düzenle">
+                                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                            </button>
+                            <button type="button" class="text-red-500 hover:text-red-700 p-1 bg-white rounded shadow-sm" onclick="deleteQuestion('${q.id}')" title="Sil">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
                     `;
                 } else {
                     item.className = 'flex justify-between items-center bg-white p-2 border border-gray-200 rounded text-sm mb-1';
                     const previewText = q.text ? (q.text.substring(0, 20) + '...') : '[Görsel]';
+                    
+                    // Cevap anahtarı etiketi
+                    const ansLabel = (q.correctAnswer && q.correctAnswer !== 'none') ? `<span class="bg-green-100 text-green-700 text-[10px] font-bold px-1.5 py-0.5 rounded ml-2">Cevap: ${q.correctAnswer}</span>` : '';
+
                     item.innerHTML = `
-                        <span class="font-medium text-gray-700">Soru ${qCounter}: <span class="text-gray-500 font-normal">${previewText}</span></span>
+                        <span class="font-medium text-gray-700 flex items-center">Soru ${qCounter}: <span class="text-gray-500 font-normal ml-1">${previewText}</span> ${ansLabel}</span>
                         <button type="button" class="text-red-500 hover:text-red-700 p-1" onclick="deleteQuestion('${q.id}')">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
