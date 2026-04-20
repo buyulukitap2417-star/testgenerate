@@ -12,7 +12,7 @@
             theme: {
                 extend: {
                     colors: {
-                        brand: '#00b0f0', // Görsellerdeki ana turkuaz/mavi renk
+                        brand: '#00b0f0', 
                         brandDark: '#008cbf'
                     },
                     fontFamily: {
@@ -22,6 +22,9 @@
             }
         }
     </script>
+
+    <!-- Html2Pdf (Otomatik PDF Çıktısı İçin) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -57,14 +60,13 @@
             padding: 15mm 10mm 5mm 10mm;
         }
 
-        /* İki sütunlu alan ve taşma tespiti için özel ayarlar */
         .a4-content {
             padding: 0 10mm;
             column-count: 2;
             column-gap: 12mm;
             column-rule: 2px dashed #00b0f0;
             column-fill: auto;
-            overflow-y: hidden; /* Dikey taşmayı gizle ki JS ile boyutunu ölçebilelim */
+            overflow-y: hidden; 
             overflow-x: hidden;
         }
 
@@ -73,7 +75,7 @@
             margin-top: auto;
         }
 
-        /* Filigran (Watermark) */
+        /* Filigran */
         .watermark-container {
             position: absolute;
             inset: 0;
@@ -113,7 +115,6 @@
             z-index: 10;
         }
         
-        /* Tam genişlik (Dikey bölen) soru sınıfı */
         .question-block.span-all {
             column-span: all;
             -webkit-column-span: all;
@@ -308,7 +309,10 @@
                 </div>
             </div>
             <div class="flex items-center space-x-4">
-                <button type="button" id="print-preview-btn" class="bg-brand text-white text-sm font-bold px-4 py-1.5 rounded hover:bg-brandDark transition flex items-center">
+                <button type="button" id="open-send-modal-btn" class="bg-green-500 text-white text-sm font-bold px-4 py-1.5 rounded hover:bg-green-600 transition flex items-center hidden shadow-sm">
+                    <i data-lucide="send" class="w-4 h-4 mr-1"></i> Ödevi Gönder
+                </button>
+                <button type="button" id="print-preview-btn" class="bg-brand text-white text-sm font-bold px-4 py-1.5 rounded hover:bg-brandDark transition flex items-center shadow-sm">
                     <i data-lucide="printer" class="w-4 h-4 mr-1"></i> Çıktı Al / PDF
                 </button>
                 <span id="user-email-display" class="text-sm text-gray-600 border-l pl-4 border-gray-200"></span>
@@ -362,7 +366,6 @@
                                 <label class="block text-xs text-gray-500">Alt Başlık Açıklaması</label>
                                 <input type="text" id="setting-desc" value="Aşağıdaki soruları defterinize belirtilen sürede rahatça çözünüz." class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
                             </div>
-                            <!-- Filigran Ayarları -->
                             <div class="pt-2 border-t border-gray-200">
                                 <label class="block text-xs font-bold text-brand">Ön Plan Filigranı</label>
                                 <input type="text" id="setting-watermark" placeholder="Yazı (Örn: KURUM ADI)" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand mb-2">
@@ -371,7 +374,6 @@
                                 <input type="file" id="setting-watermark-img" accept="image/*" class="mt-1 w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-gray-200 hover:file:bg-gray-300">
                                 <button type="button" id="remove-watermark-img-btn" class="hidden text-xs text-red-500 mt-1 hover:underline">Görsel Filigranı Kaldır</button>
                             </div>
-                            <!-- PDF Dosya Adı Ayarı -->
                             <div class="pt-2 border-t border-gray-200">
                                 <label class="block text-xs font-bold text-gray-600">İndirilecek PDF Dosya Adı</label>
                                 <input type="text" id="setting-filename" placeholder="Örn: 8_Sinif_Haftasonu_Odevi" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
@@ -544,6 +546,31 @@
         </div>
     </div>
 
+    <!-- Ödev Gönderme Modalı -->
+    <div id="send-hw-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-md">
+            <h2 class="text-lg font-bold text-green-700 mb-4 border-b pb-2 flex items-center">
+                <i data-lucide="send" class="w-5 h-5 mr-2"></i> Ödevi Öğrencilere Gönder
+            </h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Son Teslim Tarihi ve Saati</label>
+                    <input type="datetime-local" id="hw-deadline" class="w-full text-sm border-gray-300 rounded p-2 border focus:ring-green-500 focus:border-green-500 bg-gray-50">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Öğrenci Seçimi</label>
+                    <div class="border border-gray-200 rounded max-h-48 overflow-y-auto bg-gray-50" id="student-list-container">
+                        <p class="text-xs text-gray-500 text-center py-4">Öğrenciler yükleniyor...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 mt-6">
+                <button type="button" id="close-send-modal-btn" class="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200">İptal</button>
+                <button type="button" id="confirm-send-hw-btn" class="px-4 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700 font-bold flex items-center">Gönder</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase Bildirim Modalı -->
     <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none z-50">
         Mesaj
@@ -556,8 +583,8 @@
         lucide.createIcons();
 
         // 1. Supabase Kurulumu
-        const SUPABASE_URL = 'https://jyqnxmichrguerebexfi.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_krJCbyOP3AXhaCOt1MUPBA_xkcI-XFO'; 
+        const SUPABASE_URL = 'https://tnhofdyonpbmozqzimzj.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_xVFfpA85IjnCqIjEJWvtvQ_VZCH_n60'; 
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // Uygulama State'i
@@ -579,7 +606,15 @@
         const newTestIcon = document.getElementById('new-test-icon');
         const addTestHeaderBtn = document.getElementById('add-test-header-btn');
 
-        // Ayar Elementleri (Global - İlk Test)
+        // Ödev Gönderim Elementleri
+        const openSendModalBtn = document.getElementById('open-send-modal-btn');
+        const sendHwModal = document.getElementById('send-hw-modal');
+        const closeSendModalBtn = document.getElementById('close-send-modal-btn');
+        const confirmSendHwBtn = document.getElementById('confirm-send-hw-btn');
+        const studentListContainer = document.getElementById('student-list-container');
+        const hwDeadline = document.getElementById('hw-deadline');
+
+        // Ayar Elementleri
         const inputs = {
             date: document.getElementById('setting-date'),
             title: document.getElementById('setting-title'),
@@ -637,6 +672,9 @@
                 clearForm();
                 renderQuestions();
                 updateQuestionsList();
+                openSendModalBtn.classList.add('hidden'); 
+            } else {
+                openSendModalBtn.classList.remove('hidden'); 
             }
             editorSidebar.classList.remove('hidden');
             authScreen.classList.add('hidden');
@@ -662,7 +700,7 @@
             const originalTitle = document.title;
             if(customName) { document.title = customName; }
             window.print();
-            document.title = originalTitle; // İşlem bitince eski title'a dön
+            document.title = originalTitle; 
         });
 
         document.getElementById('toggle-auth-mode').addEventListener('click', () => {
@@ -740,7 +778,7 @@
                 inputs.level.value = data.level;
                 inputs.time.value = data.time;
                 inputs.desc.value = data.desc_text;
-                inputs.filename.value = data.title.replace(/\s+/g, '_'); // Eski testleri açınca ismini title'a uyarla
+                inputs.filename.value = data.title.replace(/\s+/g, '_'); 
                 questions = data.questions || [];
 
                 renderQuestions();
@@ -860,7 +898,6 @@
             showToast("Yeni test başlığı eklendi!");
         });
 
-        // Başlık Düzenleme İşlemleri
         const editHeaderModal = document.getElementById('edit-header-modal');
         
         window.openEditHeaderModal = (id) => {
@@ -938,7 +975,7 @@
             const optD = document.getElementById('q-optD').value.trim();
             const layout = document.getElementById('q-layout').value;
             const spanWidth = document.getElementById('q-span').value; 
-            const correctAnswer = document.getElementById('q-correct').value; // Doğru Cevap
+            const correctAnswer = document.getElementById('q-correct').value; 
 
             if (!text && !pendingImageData) {
                 showToast("Lütfen soru metni veya görsel ekleyin!");
@@ -953,7 +990,7 @@
                 options: { A: optA, B: optB, C: optC, D: optD },
                 layout,
                 spanWidth,
-                correctAnswer // Veritabanına da kaydedilecek
+                correctAnswer 
             });
 
             renderQuestions();
@@ -969,7 +1006,7 @@
             document.getElementById('q-optC').value = '';
             document.getElementById('q-optD').value = '';
             document.getElementById('q-span').value = 'normal'; 
-            document.getElementById('q-correct').value = 'none'; // Cevabı sıfırla
+            document.getElementById('q-correct').value = 'none'; 
             document.getElementById('remove-image-btn').click(); 
         }
 
@@ -1099,9 +1136,14 @@
                 currentContentDiv.appendChild(qDiv);
                 displayQNum++; 
 
-                // TİTİZ TAŞMA KONTROLÜ (Pagination Fix)
-                // İçerik, kapsayıcı yükseklik veya genişliği aşarsa taşmıştır demektir
-                const isOverflowing = currentContentDiv.scrollWidth > currentContentDiv.clientWidth + 5 || currentContentDiv.scrollHeight > currentContentDiv.clientHeight + 5;
+                // TİTİZ TAŞMA KONTROLÜ (Gelişmiş Koordinat Hesaplama)
+                const containerRect = currentContentDiv.getBoundingClientRect();
+                const qRect = qDiv.getBoundingClientRect();
+                
+                const isOverflowing = (qRect.bottom > containerRect.bottom + 5) || 
+                                      (qRect.right > containerRect.right + 5) || 
+                                      (currentContentDiv.scrollWidth > currentContentDiv.clientWidth + 5) || 
+                                      (currentContentDiv.scrollHeight > currentContentDiv.clientHeight + 5);
                 
                 if (isOverflowing) {
                     currentContentDiv.removeChild(qDiv); 
@@ -1116,10 +1158,8 @@
             
             if (hasAnswers) {
                 pageNum++;
-                // Cevap anahtarı her zaman kendi bağımsız sayfasında çıkar
                 let keyContentDiv = createPageDom(pageNum, false, activeSettings, false);
                 
-                // Tam genişlikte şık bir kap
                 const keyContainer = document.createElement('div');
                 keyContainer.className = 'w-full p-6 span-all bg-white rounded-xl border-4 border-brand shadow-sm';
                 keyContainer.innerHTML = '<h3 class="text-3xl font-black text-center text-brand mb-6 uppercase tracking-widest">CEVAP ANAHTARI</h3>';
@@ -1131,11 +1171,9 @@
                 
                 questions.forEach(q => {
                     if (q.type === 'header') {
-                        // Önceki bölümü kapat
                         sectionHtml += `</div></div>`;
                         keyContainer.insertAdjacentHTML('beforeend', sectionHtml);
                         
-                        // Yeni bölümü başlat
                         currentTestTitle = q.settings.title;
                         currentQNum = 1;
                         sectionHtml = `<div class="mb-6 mt-4"><h4 class="font-bold text-gray-800 text-lg border-b-2 border-gray-200 pb-2 mb-4">${currentTestTitle}</h4><div class="grid grid-cols-4 md:grid-cols-5 gap-4 text-base">`;
@@ -1186,7 +1224,6 @@
                     item.className = 'flex justify-between items-center bg-white p-2 border border-gray-200 rounded text-sm mb-1';
                     const previewText = q.text ? (q.text.substring(0, 20) + '...') : '[Görsel]';
                     
-                    // Cevap anahtarı etiketi
                     const ansLabel = (q.correctAnswer && q.correctAnswer !== 'none') ? `<span class="bg-green-100 text-green-700 text-[10px] font-bold px-1.5 py-0.5 rounded ml-2">Cevap: ${q.correctAnswer}</span>` : '';
 
                     item.innerHTML = `
@@ -1230,11 +1267,124 @@
                 } else {
                     const { data, error } = await supabase.from('tests').insert([testData]).select();
                     if (error) throw error;
-                    if (data && data.length > 0) currentTestId = data[0].id;
+                    if (data && data.length > 0) {
+                        currentTestId = data[0].id;
+                        openSendModalBtn.classList.remove('hidden'); 
+                    }
                     showToast("Yeni belge kaydedildi!");
                 }
             } catch (error) {
                 showToast("Kaydedilemedi!");
+            }
+        });
+
+        // --- MATOTA ÖDEV GÖNDERME ENTEGRASYONU ---
+        openSendModalBtn.addEventListener('click', async () => {
+            if (!currentTestId) { showToast("Önce testi kaydetmelisiniz!"); return; }
+            sendHwModal.classList.remove('hidden');
+            await fetchStudents();
+        });
+
+        closeSendModalBtn.addEventListener('click', () => {
+            sendHwModal.classList.add('hidden');
+        });
+
+        async function fetchStudents() {
+            studentListContainer.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">Öğrenciler yükleniyor...</p>';
+            try {
+                const { data, error } = await supabase.from('students').select('id, full_name, class_name').order('class_name');
+                if (error) throw error;
+
+                if (data.length === 0) {
+                    studentListContainer.innerHTML = '<p class="text-xs text-red-500 text-center py-4">Sistemde öğrenci bulunamadı.</p>';
+                    return;
+                }
+
+                studentListContainer.innerHTML = data.map(s => `
+                    <label class="flex items-center p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-0 transition">
+                        <input type="checkbox" value="${s.id}" class="student-checkbox w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+                        <span class="ml-3 text-sm font-medium text-gray-800 flex-1">${s.full_name}</span>
+                        <span class="text-xs font-bold text-brand bg-brand/10 px-2 py-1 rounded">${s.class_name || 'Kayıtsız'}</span>
+                    </label>
+                `).join('');
+
+            } catch (err) {
+                console.error(err);
+                studentListContainer.innerHTML = '<p class="text-xs text-red-500 text-center py-4">Öğrenciler çekilirken hata oluştu. Tablo yapınızı kontrol edin.</p>';
+            }
+        }
+
+        // Ödevi Gönder Butonu (PDF Oluşturma & Supabase Yükleme İşlemi)
+        confirmSendHwBtn.addEventListener('click', async () => {
+            const deadline = hwDeadline.value;
+            const selectedStudents = Array.from(document.querySelectorAll('.student-checkbox:checked')).map(cb => cb.value);
+
+            if (!deadline) { showToast("Lütfen teslim tarihi ve saati seçin!"); return; }
+            if (selectedStudents.length === 0) { showToast("Lütfen en az 1 öğrenci seçin!"); return; }
+
+            confirmSendHwBtn.disabled = true;
+
+            try {
+                // 1. PDF OLUŞTURMA
+                confirmSendHwBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 mr-2 animate-spin"></i> PDF Hazırlanıyor...';
+                lucide.createIcons();
+                
+                const element = document.getElementById('pages-container');
+                const fileName = (inputs.filename.value.trim() || 'Odev') + '.pdf';
+                
+                const opt = {
+                    margin: 0,
+                    filename: fileName,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true, logging: false },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+                
+                const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+
+                // 2. SUPABASE STORAGE'A YÜKLEME
+                confirmSendHwBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 mr-2 animate-spin"></i> Dosya Yükleniyor...';
+                lucide.createIcons();
+
+                const storagePath = `homework-files/${Date.now()}_${fileName}`;
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('matota-files') // Bucket adı güncellendi
+                    .upload(storagePath, pdfBlob, {
+                        contentType: 'application/pdf',
+                        upsert: false
+                    });
+
+                if (uploadError) throw new Error("PDF Yüklenemedi: " + uploadError.message);
+
+                const { data: publicUrlData } = supabase.storage.from('matota-files').getPublicUrl(storagePath);
+                const pdfUrl = publicUrlData.publicUrl;
+
+                // 3. VERİTABANINA (MATOTA) KAYDETME
+                confirmSendHwBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 mr-2 animate-spin"></i> Atama Yapılıyor...';
+                lucide.createIcons();
+
+                // GÖNDERDİĞİNİZ EKRAN GÖRÜNTÜSÜNE GÖRE SÜTUNLAR GÜNCELLENDİ
+                const assignmentsToInsert = selectedStudents.map(studentId => ({
+                    student_id: studentId,
+                    deadline: new Date(deadline).toISOString(),
+                    title: inputs.title.value || 'İsimsiz Ödev', // Ekran görüntüsündeki "title" sütunu
+                    pdf_url: pdfUrl, // Ekran görüntüsündeki "pdf_url" sütunu
+                    is_completed: false // Ekran görüntüsündeki "is_completed" sütunu
+                }));
+
+                // Tablo adı 'homeworks' olarak değiştirildi
+                const { error: dbError } = await supabase.from('homeworks').insert(assignmentsToInsert);
+                if (dbError) throw new Error("Atama Hatası: " + dbError.message);
+
+                showToast(`Ödev başarıyla yüklendi ve ${selectedStudents.length} öğrenciye atandı!`);
+                sendHwModal.classList.add('hidden');
+                
+            } catch (err) {
+                console.error(err);
+                showToast(err.message || "Gönderim başarısız! Lütfen Supabase ayarlarını kontrol edin.");
+            } finally {
+                confirmSendHwBtn.disabled = false;
+                confirmSendHwBtn.innerHTML = 'Gönder';
             }
         });
 
