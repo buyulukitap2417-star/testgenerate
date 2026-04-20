@@ -576,16 +576,22 @@
 
         lucide.createIcons();
 
-        // 1. Supabase Kurulumu
+        // 1. Supabase Kurulumu (YENİ MATOTA)
         const SUPABASE_URL = 'https://tnhofdyonpbmozqzimzj.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_xVFfpA85IjnCqIjEJWvtvQ_VZCH_n60'; 
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // 1.1 Supabase Kurulumu (ESKİ SİSTEM - Geçiş için)
+        const OLD_SUPABASE_URL = 'https://jyqnxmichrguerebexfi.supabase.co';
+        const OLD_SUPABASE_KEY = 'sb_publishable_krJCbyOP3AXhaCOt1MUPBA_xkcI-XFO';
+        const supabaseOld = createClient(OLD_SUPABASE_URL, OLD_SUPABASE_KEY);
 
         // Uygulama State'i
         let questions = []; 
         let pendingImageData = null;
         let currentUser = null;
         let currentTestId = null; 
+        let currentTestIsOld = false; // YENİ: Testin eski sistemden gelip gelmediği
         let globalWatermarkImage = null; 
 
         // UI Elementleri
@@ -653,6 +659,7 @@
         function showMainScreen(isNew = false) {
             if (isNew) {
                 currentTestId = null;
+                currentTestIsOld = false;
                 questions = [];
                 inputs.title.value = "GÜNLÜK ÖDEVİ-1";
                 inputs.date.value = "02-03 MART 2026";
@@ -705,13 +712,18 @@
             try {
                 const { error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) throw error;
+                // ESKİ sisteme de aynı şifreyle arka planda sessizce bağlanmayı dene
+                await supabaseOld.auth.signInWithPassword({ email, password }).catch(() => {});
             } catch (error) {
                 authError.textContent = "Giriş başarısız. E-posta veya şifre hatalı.";
                 authError.classList.remove('hidden');
             }
         });
 
-        const handleLogout = async () => { await supabase.auth.signOut(); };
+        const handleLogout = async () => { 
+            await supabase.auth.signOut(); 
+            await supabaseOld.auth.signOut(); 
+        };
         document.getElementById('logout-btn').addEventListener('click', handleLogout);
         document.getElementById('dashboard-logout-btn').addEventListener('click', handleLogout);
 
@@ -720,24 +732,43 @@
             const testsGrid = document.getElementById('tests-grid');
             testsGrid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-8">Testler yükleniyor...</div>';
             try {
-                const { data, error } = await supabase.from('tests').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
-                if (error) throw error;
-                if (data.length === 0) {
+                let allTests = [];
+
+                // YENİ Sistemden Çek
+                const { data: newData, error: newError } = await supabase.from('tests').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+                if (!newError && newData) {
+                    allTests = [...allTests, ...newData.map(t => ({...t, isOld: false}))];
+                }
+
+                // ESKİ Sistemden Çek
+                const { data: { session: oldSession } } = await supabaseOld.auth.getSession();
+                if (oldSession) {
+                    const { data: oldData, error: oldError } = await supabaseOld.from('tests').select('*').eq('user_id', oldSession.user.id).order('created_at', { ascending: false });
+                    if (!oldError && oldData) {
+                        allTests = [...allTests, ...oldData.map(t => ({...t, isOld: true}))];
+                    }
+                }
+
+                // İkisini birleştirip tarihe göre sırala
+                allTests.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                if (allTests.length === 0) {
                     testsGrid.innerHTML = `<div class="col-span-full text-center bg-white p-8 rounded-xl shadow-sm border border-gray-200">
                         <h3 class="text-lg font-medium text-gray-800">Henüz testiniz yok</h3></div>`;
                 } else {
-                    testsGrid.innerHTML = data.map(test => `
-                        <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition flex flex-col h-full">
+                    testsGrid.innerHTML = allTests.map(test => `
+                        <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition flex flex-col h-full relative">
+                            ${test.isOld ? '<span class="absolute -top-3 -right-3 bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded shadow-sm border border-yellow-200 z-10">Eski Sistem</span>' : ''}
                             <div class="flex-1">
                                 <div class="flex justify-between items-start mb-2">
-                                    <h3 onclick="previewTestAsPDF('${test.id}')" title="Tıkla ve PDF Olarak Görüntüle" class="font-bold text-lg text-brandDark line-clamp-2 cursor-pointer hover:underline">${test.title}</h3>
+                                    <h3 onclick="previewTestAsPDF('${test.id}', ${test.isOld})" title="Tıkla ve PDF Olarak Görüntüle" class="font-bold text-lg text-brandDark line-clamp-2 cursor-pointer hover:underline">${test.title}</h3>
                                     <span class="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded font-medium">${test.date}</span>
                                 </div>
                                 <p class="text-sm text-gray-500 mb-4 line-clamp-2">${test.desc_text}</p>
                             </div>
                             <div class="flex gap-2 pt-4 border-t border-gray-100 mt-auto">
-                                <button type="button" onclick="openTest('${test.id}')" class="flex-1 bg-brand text-white py-2 rounded text-sm font-medium hover:bg-brandDark transition flex items-center justify-center">Düzenle</button>
-                                <button type="button" onclick="deleteTestRecord('${test.id}')" class="p-2 bg-red-50 text-red-600 rounded hover:bg-red-100 transition" title="Sil">Sil</button>
+                                <button type="button" onclick="openTest('${test.id}', false, ${test.isOld})" class="flex-1 bg-brand text-white py-2 rounded text-sm font-medium hover:bg-brandDark transition flex items-center justify-center">Düzenle</button>
+                                <button type="button" onclick="deleteTestRecord('${test.id}', ${test.isOld})" class="p-2 bg-red-50 text-red-600 rounded hover:bg-red-100 transition" title="Sil">Sil</button>
                             </div>
                         </div>
                     `).join('');
@@ -747,12 +778,14 @@
             }
         }
 
-        window.openTest = async (id, isPreview = false) => {
+        window.openTest = async (id, isPreview = false, isOld = false) => {
             try {
-                const { data, error } = await supabase.from('tests').select('*').eq('id', id).single();
+                const targetClient = isOld ? supabaseOld : supabase;
+                const { data, error } = await targetClient.from('tests').select('*').eq('id', id).single();
                 if (error) throw error;
 
                 currentTestId = data.id;
+                currentTestIsOld = isOld;
                 inputs.title.value = data.title;
                 inputs.date.value = data.date;
                 inputs.level.value = data.level;
@@ -774,12 +807,13 @@
             }
         };
 
-        window.previewTestAsPDF = (id) => window.openTest(id, true);
+        window.previewTestAsPDF = (id, isOld = false) => window.openTest(id, true, isOld);
 
-        window.deleteTestRecord = async (id) => {
+        window.deleteTestRecord = async (id, isOld = false) => {
             if (!confirm("Bu testi silmek istediğinize emin misiniz?")) return;
             try {
-                const { error } = await supabase.from('tests').delete().eq('id', id);
+                const targetClient = isOld ? supabaseOld : supabase;
+                const { error } = await targetClient.from('tests').delete().eq('id', id);
                 if (error) throw error;
                 showToast("Test silindi!");
                 loadTests();
@@ -1244,17 +1278,20 @@
                     questions: questions 
                 };
 
-                if (currentTestId) {
+                if (currentTestId && !currentTestIsOld) {
+                    // YENİ sistemde var olan bir testi güncelliyoruz
                     await supabase.from('tests').update(testData).eq('id', currentTestId);
                     showToast("Güncellendi!");
                 } else {
+                    // Yeni test ekle (veya ESKİ sistemden açılan testi YENİ sisteme kopyala)
                     const { data, error } = await supabase.from('tests').insert([testData]).select();
                     if (error) throw error;
                     if (data && data.length > 0) {
                         currentTestId = data[0].id;
+                        currentTestIsOld = false; // Artık yeni sistemin parçası oldu!
                         openSendModalBtn.classList.remove('hidden'); 
                     }
-                    showToast("Yeni belge kaydedildi!");
+                    showToast("Yeni MATOTA sistemine kaydedildi!");
                 }
             } catch (error) {
                 showToast("Kaydedilemedi!");
