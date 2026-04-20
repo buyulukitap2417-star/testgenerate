@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Oluşturma Robotu</title>
+    <title>MATOTA | Ödev Paneli</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -235,7 +235,7 @@
         <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
             <div class="text-center mb-8">
                 <i data-lucide="bot" class="w-12 h-12 text-brand mx-auto mb-2"></i>
-                <h1 class="text-2xl font-bold text-gray-800">Test Robotu</h1>
+                <h1 class="text-2xl font-bold text-gray-800">MATOTA | Ödev Paneli</h1>
                 <p class="text-gray-500 text-sm">Öğretmen Giriş Paneli</p>
             </div>
             
@@ -253,12 +253,6 @@
                     Giriş Yap
                 </button>
             </form>
-            
-            <div class="mt-4 text-center">
-                <button type="button" id="toggle-auth-mode" class="text-sm text-brand hover:underline">
-                    Hesabınız yok mu? Kayıt Olun
-                </button>
-            </div>
         </div>
     </div>
 
@@ -305,7 +299,7 @@
                 </button>
                 <div class="flex items-center space-x-2 border-l pl-4 border-gray-200">
                     <i data-lucide="file-text" class="w-6 h-6 text-brand"></i>
-                    <span class="font-bold text-xl text-gray-800">Test Robotu</span>
+                    <span class="font-bold text-xl text-gray-800">MATOTA | Ödev Paneli</span>
                 </div>
             </div>
             <div class="flex items-center space-x-4">
@@ -589,7 +583,6 @@
 
         // Uygulama State'i
         let questions = []; 
-        let isLoginMode = true;
         let pendingImageData = null;
         let currentUser = null;
         let currentTestId = null; 
@@ -667,7 +660,7 @@
                 inputs.time.value = "25";
                 inputs.desc.value = "Aşağıdaki soruları defterinize belirtilen sürede rahatça çözünüz.";
                 inputs.watermark.value = "";
-                inputs.filename.value = "Test_Robotu_Cikti";
+                inputs.filename.value = "MATOTA_Odev_Cikti";
                 document.getElementById('remove-watermark-img-btn').click(); 
                 clearForm();
                 renderQuestions();
@@ -703,13 +696,6 @@
             document.title = originalTitle; 
         });
 
-        document.getElementById('toggle-auth-mode').addEventListener('click', () => {
-            isLoginMode = !isLoginMode;
-            document.getElementById('auth-submit-btn').textContent = isLoginMode ? 'Giriş Yap' : 'Kayıt Ol';
-            document.getElementById('toggle-auth-mode').textContent = isLoginMode ? 'Hesabınız yok mu? Kayıt Olun' : 'Zaten hesabınız var mı? Giriş Yapın';
-            document.getElementById('auth-error').classList.add('hidden');
-        });
-
         document.getElementById('auth-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('auth-email').value;
@@ -717,16 +703,10 @@
             const authError = document.getElementById('auth-error');
             authError.classList.add('hidden');
             try {
-                if (isLoginMode) {
-                    const { error } = await supabase.auth.signInWithPassword({ email, password });
-                    if (error) throw error;
-                } else {
-                    const { error } = await supabase.auth.signUp({ email, password });
-                    if (error) throw error;
-                    showToast("Kayıt işlemi başarılı! Sisteme giriş yapılıyor...");
-                }
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) throw error;
             } catch (error) {
-                authError.textContent = error.message;
+                authError.textContent = "Giriş başarısız. E-posta veya şifre hatalı.";
                 authError.classList.remove('hidden');
             }
         });
@@ -1160,6 +1140,9 @@
                 pageNum++;
                 let keyContentDiv = createPageDom(pageNum, false, activeSettings, false);
                 
+                // YENİ EKLENEN SATIR: Cevap anahtarı sayfasına özel bir sınıf (class) atıyoruz ki sonradan gizleyebilelim
+                keyContentDiv.parentElement.classList.add('answer-key-page');
+                
                 const keyContainer = document.createElement('div');
                 keyContainer.className = 'w-full p-6 span-all bg-white rounded-xl border-4 border-brand shadow-sm';
                 keyContainer.innerHTML = '<h3 class="text-3xl font-black text-center text-brand mb-6 uppercase tracking-widest">CEVAP ANAHTARI</h3>';
@@ -1342,6 +1325,10 @@
                 confirmSendHwBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 mr-2 animate-spin"></i> PDF Hazırlanıyor...';
                 lucide.createIcons();
                 
+                // --- YENİ EKLENEN: Öğrenciye giden PDF oluşturulmadan hemen önce cevap anahtarını gizle ---
+                const answerKeyPages = document.querySelectorAll('.answer-key-page');
+                answerKeyPages.forEach(page => page.style.display = 'none');
+                
                 const element = document.getElementById('pages-container');
                 const rawFileName = inputs.filename.value.trim() || 'Odev';
                 
@@ -1365,6 +1352,9 @@
                 };
                 
                 const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+
+                // --- YENİ EKLENEN: PDF işlemi bittikten hemen sonra öğretmenin ekranına cevap anahtarını geri getir ---
+                answerKeyPages.forEach(page => page.style.display = '');
 
                 // 2. SUPABASE STORAGE'A YÜKLEME
                 confirmSendHwBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 mr-2 animate-spin"></i> Dosya Yükleniyor...';
