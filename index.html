@@ -1343,7 +1343,18 @@
                 lucide.createIcons();
                 
                 const element = document.getElementById('pages-container');
-                const fileName = (inputs.filename.value.trim() || 'Odev') + '.pdf';
+                const rawFileName = inputs.filename.value.trim() || 'Odev';
+                
+                // Supabase "Invalid Key" hatasını önlemek için dosya adındaki Türkçe ve özel karakterleri temizliyoruz
+                const charMap = {
+                    'ç': 'c', 'Ç': 'C', 'ğ': 'g', 'Ğ': 'G', 'ı': 'i', 'İ': 'I',
+                    'ö': 'o', 'Ö': 'O', 'ş': 's', 'Ş': 'S', 'ü': 'u', 'Ü': 'U'
+                };
+                const safeFileName = rawFileName
+                    .replace(/[çÇğĞıİöÖşŞüÜ]/g, match => charMap[match])
+                    .replace(/[^a-zA-Z0-9_-]/g, '_'); // Sadece İngilizce harf, rakam, tire ve alt çizgiye izin ver
+                
+                const fileName = safeFileName + '.pdf';
                 
                 const opt = {
                     margin: 0,
@@ -1361,7 +1372,7 @@
 
                 const storagePath = `homework-files/${Date.now()}_${fileName}`;
                 const { data: uploadData, error: uploadError } = await supabase.storage
-                    .from('matota-files') // Bucket adı güncellendi
+                    .from('matota-files') 
                     .upload(storagePath, pdfBlob, {
                         contentType: 'application/pdf',
                         upsert: false
