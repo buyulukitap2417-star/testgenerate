@@ -1292,32 +1292,31 @@
         async function fetchStudents() {
             studentListContainer.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">Öğrenciler yükleniyor...</p>';
             try {
-                // profiles tablosundan role sütunu 'Student' olanları çekiyoruz
+                // 1. 'student' küçük harfle arandı
+                // 2. Sadece giriş yapan öğretmenin (currentUser.id) kendi öğrencileri filtrelendi
                 const { data, error } = await supabase
                     .from('profiles')
                     .select('*')
-                    .eq('role', 'Student');
+                    .eq('role', 'student')
+                    .eq('teacher_id', currentUser.id);
                     
                 if (error) throw error;
 
                 if (!data || data.length === 0) {
-                    studentListContainer.innerHTML = '<p class="text-xs text-red-500 text-center py-4">Sistemde öğrenci bulunamadı.</p>';
+                    studentListContainer.innerHTML = '<p class="text-xs text-red-500 text-center py-4">Size kayıtlı öğrenci bulunamadı.</p>';
                     return;
                 }
 
-                // Varsa class_name'e göre alfabetik sırala
-                data.sort((a, b) => (a.class_name || '').localeCompare(b.class_name || ''));
+                // Tablonuzda class_name olmadığı için direkt full_name'e göre alfabetik sıralıyoruz
+                data.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
 
                 studentListContainer.innerHTML = data.map(s => {
-                    // Profil tablosunda ismin tutulduğu olası sütun isimleri
-                    const studentName = s.full_name || s.name || s.display_name || 'İsimsiz Öğrenci';
-                    const className = s.class_name || 'Öğrenci';
+                    const studentName = s.full_name || s.email || 'İsimsiz Öğrenci';
                     
                     return `
                     <label class="flex items-center p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-0 transition">
                         <input type="checkbox" value="${s.id}" class="student-checkbox w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
                         <span class="ml-3 text-sm font-medium text-gray-800 flex-1">${studentName}</span>
-                        <span class="text-xs font-bold text-brand bg-brand/10 px-2 py-1 rounded">${className}</span>
                     </label>
                     `;
                 }).join('');
