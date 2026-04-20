@@ -1292,21 +1292,35 @@
         async function fetchStudents() {
             studentListContainer.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">Öğrenciler yükleniyor...</p>';
             try {
-                const { data, error } = await supabase.from('students').select('id, full_name, class_name').order('class_name');
+                // profiles tablosundan role sütunu 'Student' olanları çekiyoruz
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('role', 'Student');
+                    
                 if (error) throw error;
 
-                if (data.length === 0) {
+                if (!data || data.length === 0) {
                     studentListContainer.innerHTML = '<p class="text-xs text-red-500 text-center py-4">Sistemde öğrenci bulunamadı.</p>';
                     return;
                 }
 
-                studentListContainer.innerHTML = data.map(s => `
+                // Varsa class_name'e göre alfabetik sırala
+                data.sort((a, b) => (a.class_name || '').localeCompare(b.class_name || ''));
+
+                studentListContainer.innerHTML = data.map(s => {
+                    // Profil tablosunda ismin tutulduğu olası sütun isimleri
+                    const studentName = s.full_name || s.name || s.display_name || 'İsimsiz Öğrenci';
+                    const className = s.class_name || 'Öğrenci';
+                    
+                    return `
                     <label class="flex items-center p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-0 transition">
                         <input type="checkbox" value="${s.id}" class="student-checkbox w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
-                        <span class="ml-3 text-sm font-medium text-gray-800 flex-1">${s.full_name}</span>
-                        <span class="text-xs font-bold text-brand bg-brand/10 px-2 py-1 rounded">${s.class_name || 'Kayıtsız'}</span>
+                        <span class="ml-3 text-sm font-medium text-gray-800 flex-1">${studentName}</span>
+                        <span class="text-xs font-bold text-brand bg-brand/10 px-2 py-1 rounded">${className}</span>
                     </label>
-                `).join('');
+                    `;
+                }).join('');
 
             } catch (err) {
                 console.error(err);
