@@ -6,7 +6,7 @@
     <title>MATOTA | Ödev Paneli</title>
     
     <!-- Sekme Küçük Resmi (Favicon) -->
-    <link rel="icon" href="https://tnhofdyonpbmozqzimzj.supabase.co/storage/v1/object/public/favicon/A%20(5).png">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%2300b0f0%22/><text x=%2250%22 y=%2272%22 font-family=%22Arial, sans-serif%22 font-size=%2270%22 font-weight=%22bold%22 fill=%22white%22 text-anchor=%22middle%22>M</text></svg>">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -224,6 +224,13 @@
             }
         }
         
+        /* PDF Dışa Aktarım Özel Sınıfı (Ödev Gönderme Hatasını Çözer) */
+        .pdf-exporting .a4-wrapper { max-height: none !important; overflow: visible !important; padding: 0 !important; background: white !important; }
+        .pdf-exporting #pages-container { gap: 0 !important; padding: 0 !important; }
+        .pdf-exporting .a4-paper { box-shadow: none !important; margin: 0 !important; border: none !important; page-break-after: always; }
+        .pdf-exporting body, .pdf-exporting html, .pdf-exporting #main-screen { height: auto !important; overflow: visible !important; }
+        .pdf-exporting #print-area { position: relative !important; width: 100% !important; overflow: visible !important; display: block !important; }
+
         /* Özel Scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
@@ -426,6 +433,10 @@
                                     <option value="normal">Yarım Genişlik (Sütun İçi Dikey)</option>
                                     <option value="all">Tam Genişlik (Sayfayı Böler Yatay)</option>
                                 </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-700 font-medium">Soru Konusu (İsteğe Bağlı)</label>
+                                <input type="text" id="q-topic" placeholder="Örn: Çarpanlar ve Katlar" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
                             </div>
                             <div>
                                 <label class="block text-xs text-gray-700 font-medium">Soru Metni</label>
@@ -797,9 +808,9 @@
                 inputs.filename.value = data.title.replace(/\s+/g, '_'); 
                 questions = data.questions || [];
 
+                showMainScreen(); // DÜZELTME: Görünür yapıldıktan sonra render edilmeli ki boyutlar hesaplanabilsin
                 renderQuestions();
                 updateQuestionsList();
-                showMainScreen();
 
                 if (isPreview) {
                     editorSidebar.classList.add('hidden');
@@ -993,6 +1004,7 @@
             const layout = document.getElementById('q-layout').value;
             const spanWidth = document.getElementById('q-span').value; 
             const correctAnswer = document.getElementById('q-correct').value; 
+            const topic = document.getElementById('q-topic').value.trim();
 
             if (!text && !pendingImageData) {
                 showToast("Lütfen soru metni veya görsel ekleyin!");
@@ -1007,7 +1019,8 @@
                 options: { A: optA, B: optB, C: optC, D: optD },
                 layout,
                 spanWidth,
-                correctAnswer 
+                correctAnswer,
+                topic
             });
 
             renderQuestions();
@@ -1018,11 +1031,11 @@
 
         function clearForm() {
             document.getElementById('q-text').value = '';
+            document.getElementById('q-topic').value = '';
             document.getElementById('q-optA').value = '';
             document.getElementById('q-optB').value = '';
             document.getElementById('q-optC').value = '';
             document.getElementById('q-optD').value = '';
-            document.getElementById('q-span').value = 'normal'; 
             document.getElementById('q-correct').value = 'none'; 
             document.getElementById('remove-image-btn').click(); 
         }
@@ -1132,6 +1145,9 @@
                 qDiv.className = q.spanWidth === 'all' ? 'question-block span-all' : 'question-block';
 
                 let html = `<div class="question-number">${displayQNum}</div>`;
+                if (q.topic) {
+                    html += `<div class="float-left bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded border border-amber-200 mr-2 mt-0.5 font-bold shadow-sm">${q.topic}</div>`;
+                }
                 if (q.text) {
                     html += `<div class="question-text">${q.text.replace(/\n/g, '<br>')}</div>`;
                 }
@@ -1290,6 +1306,10 @@
                     const { data, error } = await supabase.from('tests').insert([testData]).select();
                     if (error) throw error;
                     if (data && data.length > 0) {
+                        if (currentTestIsOld) {
+                            // ESKİ DB'DEN SİL Kİ ÇİFT GÖZÜKMESİN
+                            await supabaseOld.from('tests').delete().eq('id', currentTestId).catch(e => console.error(e));
+                        }
                         currentTestId = data[0].id;
                         currentTestIsOld = false; // Artık yeni sistemin parçası oldu!
                         openSendModalBtn.classList.remove('hidden'); 
@@ -1369,8 +1389,12 @@
                 const answerKeyPages = document.querySelectorAll('.answer-key-page');
                 answerKeyPages.forEach(page => page.style.display = 'none');
                 
+                document.body.classList.add('pdf-exporting'); // DÜZELTME: Sayfa kaymasını engeller
+                await new Promise(r => setTimeout(r, 100)); // CSS'in uygulanması için kısa bekleme
+
                 const element = document.getElementById('pages-container');
                 const rawFileName = inputs.filename.value.trim() || 'Odev';
+                const dateStr = new Date().toLocaleDateString('tr-TR').replace(/\./g, '-');
                 
                 // Supabase "Invalid Key" hatasını önlemek için dosya adındaki Türkçe ve özel karakterleri temizliyoruz
                 const charMap = {
@@ -1381,18 +1405,21 @@
                     .replace(/[çÇğĞıİöÖşŞüÜ]/g, match => charMap[match])
                     .replace(/[^a-zA-Z0-9_-]/g, '_'); // Sadece İngilizce harf, rakam, tire ve alt çizgiye izin ver
                 
-                const fileName = safeFileName + '.pdf';
+                const fileName = `${dateStr}_${safeFileName}.pdf`;
                 
                 const opt = {
                     margin: 0,
                     filename: fileName,
                     image: { type: 'jpeg', quality: 0.98 },
                     html2canvas: { scale: 2, useCORS: true, logging: false },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak: { mode: ['css', 'legacy'] }
                 };
                 
                 const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
 
+                document.body.classList.remove('pdf-exporting'); // PDF işlemi bittikten sonra sınıfı kaldır
+                
                 // --- YENİ EKLENEN: PDF işlemi bittikten hemen sonra öğretmenin ekranına cevap anahtarını geri getir ---
                 answerKeyPages.forEach(page => page.style.display = '');
 
