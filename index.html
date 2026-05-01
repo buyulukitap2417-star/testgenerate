@@ -227,7 +227,17 @@
         /* PDF Dışa Aktarım Özel Sınıfı (Ödev Gönderme Hatasını Çözer) */
         .pdf-exporting .a4-wrapper { max-height: none !important; overflow: visible !important; padding: 0 !important; background: white !important; }
         .pdf-exporting #pages-container { gap: 0 !important; padding: 0 !important; }
-        .pdf-exporting .a4-paper { box-shadow: none !important; margin: 0 !important; border: none !important; page-break-after: always; }
+        .pdf-exporting .a4-paper { 
+            box-shadow: none !important; 
+            margin: 0 !important; 
+            border: none !important; 
+            page-break-after: always !important; 
+            height: 296mm !important; /* 1px taşmayı engeller, boş sayfayı yok eder */
+            overflow: hidden !important; 
+        }
+        .pdf-exporting .a4-paper:last-child {
+            page-break-after: auto !important; /* Son kağıttan sonraki gereksiz boş sayfayı yok eder */
+        }
         .pdf-exporting body, .pdf-exporting html, .pdf-exporting #main-screen { height: auto !important; overflow: visible !important; }
         .pdf-exporting #print-area { position: relative !important; width: 100% !important; overflow: visible !important; display: block !important; }
 
@@ -436,7 +446,21 @@
                             </div>
                             <div>
                                 <label class="block text-xs text-gray-700 font-medium">Soru Konusu (İsteğe Bağlı)</label>
-                                <input type="text" id="q-topic" placeholder="Örn: Çarpanlar ve Katlar" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
+                                <select id="q-topic" class="mt-1 w-full text-sm border-gray-300 rounded p-1.5 border focus:ring-brand focus:border-brand">
+                                    <option value="none">Seçilmedi (Boş)</option>
+                                    <option value="Çarpanlar ve Katlar">Çarpanlar ve Katlar</option>
+                                    <option value="Üslü İfadeler">Üslü İfadeler</option>
+                                    <option value="Kareköklü İfadeler">Kareköklü İfadeler</option>
+                                    <option value="Veri Analizi">Veri Analizi</option>
+                                    <option value="Basit Olayların Olma Olasılığı">Basit Olayların Olma Olasılığı</option>
+                                    <option value="Cebirsel İfadeler ve Özdeşlikler">Cebirsel İfadeler ve Özdeşlikler</option>
+                                    <option value="Doğrusal Denklemler">Doğrusal Denklemler</option>
+                                    <option value="Eşitsizlikler">Eşitsizlikler</option>
+                                    <option value="Üçgenler">Üçgenler</option>
+                                    <option value="Eşlik ve Benzerlik">Eşlik ve Benzerlik</option>
+                                    <option value="Dönüşüm Geometrisi">Dönüşüm Geometrisi</option>
+                                    <option value="Geometrik Cisimler">Geometrik Cisimler</option>
+                                </select>
                             </div>
                             <div>
                                 <label class="block text-xs text-gray-700 font-medium">Soru Metni</label>
@@ -605,7 +629,7 @@
         let pendingImageData = null;
         let currentUser = null;
         let currentTestId = null; 
-        let currentTestIsOld = false; // YENİ: Testin eski sistemden gelip gelmediği
+        let currentTestIsOld = false; 
         let globalWatermarkImage = null; 
 
         // UI Elementleri
@@ -671,6 +695,11 @@
         }
 
         function showMainScreen(isNew = false) {
+            editorSidebar.classList.remove('hidden');
+            authScreen.classList.add('hidden');
+            dashboardScreen.classList.add('hidden');
+            mainScreen.classList.remove('hidden');
+
             if (isNew) {
                 currentTestId = null;
                 currentTestIsOld = false;
@@ -684,16 +713,17 @@
                 inputs.filename.value = "MATOTA_Odev_Cikti";
                 document.getElementById('remove-watermark-img-btn').click(); 
                 clearForm();
-                renderQuestions();
-                updateQuestionsList();
                 openSendModalBtn.classList.add('hidden'); 
+
+                // Görünürlük tamamlandıktan sonra render et (Sayfa hesaplama hatasını önler)
+                setTimeout(() => {
+                    renderQuestions();
+                    updateQuestionsList();
+                }, 50);
             } else {
                 openSendModalBtn.classList.remove('hidden'); 
             }
-            editorSidebar.classList.remove('hidden');
-            authScreen.classList.add('hidden');
-            dashboardScreen.classList.add('hidden');
-            mainScreen.classList.remove('hidden');
+            
             lucide.createIcons();
         }
 
@@ -710,9 +740,12 @@
         
         // ÖZEL PDF ADI VE YAZDIRMA
         document.getElementById('print-preview-btn').addEventListener('click', () => {
-            const customName = inputs.filename.value.trim();
+            const rawName = inputs.filename.value.trim() || 'MATOTA_Odev';
+            const dateStr = new Date().toLocaleDateString('tr-TR').replace(/\./g, '-');
+            const customName = `${dateStr}_${rawName}`;
+            
             const originalTitle = document.title;
-            if(customName) { document.title = customName; }
+            document.title = customName; 
             window.print();
             document.title = originalTitle; 
         });
@@ -808,14 +841,18 @@
                 inputs.filename.value = data.title.replace(/\s+/g, '_'); 
                 questions = data.questions || [];
 
-                showMainScreen(); // DÜZELTME: Görünür yapıldıktan sonra render edilmeli ki boyutlar hesaplanabilsin
-                renderQuestions();
-                updateQuestionsList();
+                showMainScreen(); 
+                
+                // DÜZELTME: Ekran görünür olduktan SONRA hesaplama yapılsın diye kısa bir bekleme ekledik
+                setTimeout(() => {
+                    renderQuestions();
+                    updateQuestionsList();
 
-                if (isPreview) {
-                    editorSidebar.classList.add('hidden');
-                    setTimeout(() => document.getElementById('print-preview-btn').click(), 500);
-                }
+                    if (isPreview) {
+                        editorSidebar.classList.add('hidden');
+                        setTimeout(() => document.getElementById('print-preview-btn').click(), 500);
+                    }
+                }, 100);
             } catch (error) {
                 showToast("Test yüklenemedi!");
             }
@@ -1004,7 +1041,8 @@
             const layout = document.getElementById('q-layout').value;
             const spanWidth = document.getElementById('q-span').value; 
             const correctAnswer = document.getElementById('q-correct').value; 
-            const topic = document.getElementById('q-topic').value.trim();
+            const topicVal = document.getElementById('q-topic').value;
+            const topic = topicVal === 'none' ? '' : topicVal; 
 
             if (!text && !pendingImageData) {
                 showToast("Lütfen soru metni veya görsel ekleyin!");
@@ -1020,7 +1058,7 @@
                 layout,
                 spanWidth,
                 correctAnswer,
-                topic
+                topic 
             });
 
             renderQuestions();
@@ -1031,11 +1069,12 @@
 
         function clearForm() {
             document.getElementById('q-text').value = '';
-            document.getElementById('q-topic').value = '';
+            document.getElementById('q-topic').value = 'none'; 
             document.getElementById('q-optA').value = '';
             document.getElementById('q-optB').value = '';
             document.getElementById('q-optC').value = '';
             document.getElementById('q-optD').value = '';
+            // q-span sıfırlanmıyor, kullanıcının son seçimi devam ediyor
             document.getElementById('q-correct').value = 'none'; 
             document.getElementById('remove-image-btn').click(); 
         }
@@ -1298,20 +1337,17 @@
                 };
 
                 if (currentTestId && !currentTestIsOld) {
-                    // YENİ sistemde var olan bir testi güncelliyoruz
                     await supabase.from('tests').update(testData).eq('id', currentTestId);
                     showToast("Güncellendi!");
                 } else {
-                    // Yeni test ekle (veya ESKİ sistemden açılan testi YENİ sisteme kopyala)
                     const { data, error } = await supabase.from('tests').insert([testData]).select();
                     if (error) throw error;
                     if (data && data.length > 0) {
                         if (currentTestIsOld) {
-                            // ESKİ DB'DEN SİL Kİ ÇİFT GÖZÜKMESİN
                             await supabaseOld.from('tests').delete().eq('id', currentTestId).catch(e => console.error(e));
                         }
                         currentTestId = data[0].id;
-                        currentTestIsOld = false; // Artık yeni sistemin parçası oldu!
+                        currentTestIsOld = false; 
                         openSendModalBtn.classList.remove('hidden'); 
                     }
                     showToast("Yeni MATOTA sistemine kaydedildi!");
@@ -1335,8 +1371,6 @@
         async function fetchStudents() {
             studentListContainer.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">Öğrenciler yükleniyor...</p>';
             try {
-                // 1. 'student' küçük harfle arandı
-                // 2. Sadece giriş yapan öğretmenin (currentUser.id) kendi öğrencileri filtrelendi
                 const { data, error } = await supabase
                     .from('profiles')
                     .select('*')
@@ -1350,7 +1384,6 @@
                     return;
                 }
 
-                // Tablonuzda class_name olmadığı için direkt full_name'e göre alfabetik sıralıyoruz
                 data.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
 
                 studentListContainer.innerHTML = data.map(s => {
@@ -1385,25 +1418,23 @@
                 confirmSendHwBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 mr-2 animate-spin"></i> PDF Hazırlanıyor...';
                 lucide.createIcons();
                 
-                // --- YENİ EKLENEN: Öğrenciye giden PDF oluşturulmadan hemen önce cevap anahtarını gizle ---
                 const answerKeyPages = document.querySelectorAll('.answer-key-page');
                 answerKeyPages.forEach(page => page.style.display = 'none');
                 
-                document.body.classList.add('pdf-exporting'); // DÜZELTME: Sayfa kaymasını engeller
-                await new Promise(r => setTimeout(r, 100)); // CSS'in uygulanması için kısa bekleme
+                document.body.classList.add('pdf-exporting'); 
+                await new Promise(r => setTimeout(r, 100)); 
 
                 const element = document.getElementById('pages-container');
                 const rawFileName = inputs.filename.value.trim() || 'Odev';
                 const dateStr = new Date().toLocaleDateString('tr-TR').replace(/\./g, '-');
                 
-                // Supabase "Invalid Key" hatasını önlemek için dosya adındaki Türkçe ve özel karakterleri temizliyoruz
                 const charMap = {
                     'ç': 'c', 'Ç': 'C', 'ğ': 'g', 'Ğ': 'G', 'ı': 'i', 'İ': 'I',
                     'ö': 'o', 'Ö': 'O', 'ş': 's', 'Ş': 'S', 'ü': 'u', 'Ü': 'U'
                 };
                 const safeFileName = rawFileName
                     .replace(/[çÇğĞıİöÖşŞüÜ]/g, match => charMap[match])
-                    .replace(/[^a-zA-Z0-9_-]/g, '_'); // Sadece İngilizce harf, rakam, tire ve alt çizgiye izin ver
+                    .replace(/[^a-zA-Z0-9_-]/g, '_'); 
                 
                 const fileName = `${dateStr}_${safeFileName}.pdf`;
                 
@@ -1412,15 +1443,12 @@
                     filename: fileName,
                     image: { type: 'jpeg', quality: 0.98 },
                     html2canvas: { scale: 2, useCORS: true, logging: false },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                    pagebreak: { mode: ['css', 'legacy'] }
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
                 
                 const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
 
-                document.body.classList.remove('pdf-exporting'); // PDF işlemi bittikten sonra sınıfı kaldır
-                
-                // --- YENİ EKLENEN: PDF işlemi bittikten hemen sonra öğretmenin ekranına cevap anahtarını geri getir ---
+                document.body.classList.remove('pdf-exporting'); 
                 answerKeyPages.forEach(page => page.style.display = '');
 
                 // 2. SUPABASE STORAGE'A YÜKLEME
@@ -1444,16 +1472,14 @@
                 confirmSendHwBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 mr-2 animate-spin"></i> Atama Yapılıyor...';
                 lucide.createIcons();
 
-                // GÖNDERDİĞİNİZ EKRAN GÖRÜNTÜSÜNE GÖRE SÜTUNLAR GÜNCELLENDİ
                 const assignmentsToInsert = selectedStudents.map(studentId => ({
                     student_id: studentId,
                     deadline: new Date(deadline).toISOString(),
-                    title: inputs.title.value || 'İsimsiz Ödev', // Ekran görüntüsündeki "title" sütunu
-                    pdf_url: pdfUrl, // Ekran görüntüsündeki "pdf_url" sütunu
-                    is_completed: false // Ekran görüntüsündeki "is_completed" sütunu
+                    title: inputs.title.value || 'İsimsiz Ödev', 
+                    pdf_url: pdfUrl, 
+                    is_completed: false 
                 }));
 
-                // Tablo adı 'homeworks' olarak değiştirildi
                 const { error: dbError } = await supabase.from('homeworks').insert(assignmentsToInsert);
                 if (dbError) throw new Error("Atama Hatası: " + dbError.message);
 
